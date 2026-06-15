@@ -14,36 +14,37 @@ const SUPABASE_KEY = 'sb_publishable_A7Rkd6AM1gUgJKcYzzht0g_bS5GMwkl';
 // ====================================================
 
 const CloudinaryAdapter = {
-  /**
-   * Upload một file lên Cloudinary
-   * @param {File} file - File ảnh hoặc video
-   * @returns {Promise<{secure_url: string, resource_type: string}>}
-   */
   async upload(file) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
 
-    // Xác định resource_type dựa trên loại file
     const resourceType = file.type.startsWith('video/') ? 'video' : 'image';
-
     const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`;
 
-    const response = await fetch(url, {
-      method: 'POST',
-      body: formData,
+    // DEBUG: log trước khi gọi API
+    console.log('[CLD] Upload bắt đầu', {
+      name: file.name,
+      size: Math.round(file.size/1024) + 'KB',
+      type: file.type,
+      preset: CLOUDINARY_UPLOAD_PRESET,
+      cloud: CLOUDINARY_CLOUD_NAME,
+      url
     });
+
+    const response = await fetch(url, { method: 'POST', body: formData });
+
+    console.log('[CLD] Response status:', response.status);
 
     if (!response.ok) {
       const err = await response.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Cloudinary upload thất bại: ${response.status}`);
+      console.error('[CLD] Lỗi response:', err);
+      throw new Error('Cloudinary: ' + (err.error?.message || JSON.stringify(err) || 'HTTP ' + response.status));
     }
 
     const data = await response.json();
-    return {
-      secure_url: data.secure_url,
-      resource_type: resourceType,
-    };
+    console.log('[CLD] Thành công! secure_url:', data.secure_url);
+    return { secure_url: data.secure_url, resource_type: resourceType };
   },
 };
 
@@ -216,7 +217,10 @@ async function uploadToCloudinary(file) {
  * @returns {Promise<Object>} row đã tạo
  */
 async function saveMemoryToSupabase(record) {
-  return await SupabaseAdapter.insert(record);
+  console.log('[Supabase] INSERT record:', JSON.stringify(record));
+  const result = await SupabaseAdapter.insert(record);
+  console.log('[Supabase] INSERT thành công, row:', result);
+  return result;
 }
 
 /**
@@ -677,15 +681,24 @@ async function saveMemory() {
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Đang lưu...'; }
 
   try {
-    let mediaUrl  = AppState.currentMediaData; // URL cũ (khi edit không đổi ảnh)
+    let mediaUrl  = AppState.currentMediaData;
     let mediaType = AppState.currentMediaType;
 
-    // Nếu người dùng chọn file mới → upload lên Cloudinary
+    // DEBUG
+    console.log('[saveMemory] currentMediaFile:', AppState.currentMediaFile);
+    console.log('[saveMemory] currentMediaData:', AppState.currentMediaData);
+    console.log('[saveMemory] currentMediaType:', AppState.currentMediaType);
+    console.log('[saveMemory] editingId:', AppState.editingId);
+
     if (AppState.currentMediaFile) {
       showToast('⏳ Đang tải lên Cloudinary...', '');
+      console.log('[saveMemory] → Gọi uploadToCloudinary...');
       const uploaded = await uploadToCloudinary(AppState.currentMediaFile);
       mediaUrl  = uploaded.secure_url;
       mediaType = uploaded.media_type;
+      console.log('[saveMemory] → Upload xong, mediaUrl:', mediaUrl);
+    } else {
+      console.warn('[saveMemory] KHÔNG có file để upload — currentMediaFile là null/undefined');
     }
 
     if (AppState.editingId && AppState.editingSupabaseId) {
@@ -819,11 +832,11 @@ async function previewImage(input) {
   try {
     // Lưu File object để upload lên Cloudinary khi save
     AppState.currentMediaFile = file;
+    AppState.currentMediaData = null;
 
-    // Tạo blob URL để preview ngay (không cần đọc toàn bộ base64)
+    console.log('[previewImage] File đã lưu vào AppState.currentMediaFile:', file.name, file.size);
+
     const blobUrl = URL.createObjectURL(file);
-    AppState.currentMediaData = null; // sẽ được gán sau khi upload
-
     const preview = document.getElementById('imagePreview');
     preview.src = blobUrl;
     preview.style.display = 'block';
@@ -849,9 +862,10 @@ async function previewVideo(input) {
   }
 
   try {
-    // Lưu File object để upload lên Cloudinary khi save
     AppState.currentMediaFile = file;
     AppState.currentMediaData = null;
+
+    console.log('[previewVideo] File đã lưu vào AppState.currentMediaFile:', file.name, file.size);
 
     const blobUrl = URL.createObjectURL(file);
     const preview = document.getElementById('videoPreview');
