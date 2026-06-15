@@ -1,0 +1,29 @@
+name: Keep Supabase Alive
+
+on:
+  schedule:
+    # Chạy mỗi 5 ngày lúc 8:00 sáng (giờ UTC+7 = 1:00 UTC)
+    - cron: '0 1 */5 * *'
+  workflow_dispatch: # Cho phép chạy thủ công nếu muốn
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase để giữ project hoạt động
+        run: |
+          echo "🏓 Đang ping Supabase..."
+
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://nafjrifwubpujvqrbkaj.supabase.co/rest/v1/memories?select=id&limit=1" \
+            -H "apikey: sb_publishable_A7Rkd6AM1gUgJKcYzzht0g_bS5GMwkl" \
+            -H "Authorization: Bearer sb_publishable_A7Rkd6AM1gUgJKcYzzht0g_bS5GMwkl")
+
+          echo "📡 Response code: $RESPONSE"
+
+          if [ "$RESPONSE" = "200" ]; then
+            echo "✅ Supabase đang hoạt động tốt!"
+          else
+            echo "⚠️ Có vấn đề với Supabase, response: $RESPONSE"
+            exit 1
+          fi
