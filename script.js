@@ -758,44 +758,38 @@ async function confirmDeleteMemory(id) {
 }
 
 // ====================================================
-// HELPER FUNCTIONS
+// HELPER FUNCTIONS — NGÀY THÁNG (KHÔNG DÙNG Date object để tránh lệch múi giờ)
 // ====================================================
+
+// yyyy-mm-dd → dd/mm/yyyy  (tách chuỗi trực tiếp, không qua Date)
 function formatDate(d) {
   if (!d) return '';
-  try {
-    const dt = new Date(d + 'T00:00:00+07:00');
-    const day   = String(dt.getUTCDate()).padStart(2, '0');
-    const month = String(dt.getUTCMonth() + 1).padStart(2, '0');
-    const year  = dt.getUTCFullYear();
-    return `${day}/${month}/${year}`;
-  } catch(e) { return d; }
+  const m = String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : String(d);
 }
 
-// Chuyển yyyy-mm-dd → dd/mm/yyyy (để hiển thị trong input)
+// yyyy-mm-dd → dd/mm/yyyy  (dùng để set vào input text)
 function isoToDisplay(iso) {
-  if (!iso) return '';
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (!m) return iso;
-  return `${m[3]}/${m[2]}/${m[1]}`;
+  return formatDate(iso);
 }
 
-// Chuyển dd/mm/yyyy → yyyy-mm-dd (để lưu vào Supabase)
+// dd/mm/yyyy → yyyy-mm-dd  (để lưu vào Supabase)
 function displayToIso(display) {
   if (!display) return '';
-  const m = display.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!m) return display;
-  return `${m[3]}-${m[2]}-${m[1]}`;
+  const m = String(display).match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : display;
 }
 
-// Kiểm tra định dạng dd/mm/yyyy có hợp lệ không
+// Validate đúng dd/mm/yyyy
 function isValidDisplayDate(val) {
   return /^\d{2}\/\d{2}\/\d{4}$/.test(val);
 }
 
-// Trả về ngày hôm nay theo giờ VN, định dạng dd/mm/yyyy
+// Ngày hôm nay theo giờ VN, trả dd/mm/yyyy (tách chuỗi, không qua Date constructor)
 function getTodayVN() {
+  // toLocaleDateString với en-CA cho yyyy-mm-dd, sau đó tách chuỗi
   const iso = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
-  return isoToDisplay(iso);
+  return formatDate(iso);
 }
 
 function escapeHtml(str) {
