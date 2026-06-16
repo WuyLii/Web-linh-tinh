@@ -1,60 +1,36 @@
 // ====================================================
-// CẤU HÌNH - CLOUDINARY & SUPABASE
+// CẤU HÌNH
 // ====================================================
-
-const CLOUDINARY_CLOUD_NAME  = 'dmq9orepw';
+const CLOUDINARY_CLOUD_NAME    = 'dmq9orepw';
 const CLOUDINARY_UPLOAD_PRESET = 'memory_gallery';
-
 const SUPABASE_URL = 'https://nafjrifwubpujvqrbkaj.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_A7Rkd6AM1gUgJKcYzzht0g_bS5GMwkl';
 
 // ====================================================
 // CLOUDINARY ADAPTER
-// Upload file lên Cloudinary, trả về secure_url
 // ====================================================
-
 const CloudinaryAdapter = {
   async upload(file) {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-
-    const resourceType = file.type.startsWith('video/') ? 'video' : 'image';
-    const url = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`;
-
-    // DEBUG: log trước khi gọi API
-    console.log('[CLD] Upload bắt đầu', {
-      name: file.name,
-      size: Math.round(file.size/1024) + 'KB',
-      type: file.type,
-      preset: CLOUDINARY_UPLOAD_PRESET,
-      cloud: CLOUDINARY_CLOUD_NAME,
-      url
-    });
-
-    const response = await fetch(url, { method: 'POST', body: formData });
-
-    console.log('[CLD] Response status:', response.status);
-
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}));
-      console.error('[CLD] Lỗi response:', err);
-      throw new Error('Cloudinary: ' + (err.error?.message || JSON.stringify(err) || 'HTTP ' + response.status));
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    const type = file.type.startsWith('video/') ? 'video' : 'image';
+    const url  = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${type}/upload`;
+    const res  = await fetch(url, { method: 'POST', body: fd });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error('Cloudinary: ' + (err.error?.message || `HTTP ${res.status}`));
     }
-
-    const data = await response.json();
-    console.log('[CLD] Thành công! secure_url:', data.secure_url);
-    return { secure_url: data.secure_url, resource_type: resourceType };
+    const data = await res.json();
+    return { secure_url: data.secure_url, resource_type: type };
   },
 };
 
 // ====================================================
 // SUPABASE ADAPTER
-// Đọc / ghi metadata kỷ niệm vào bảng "memories"
 // ====================================================
-
 const SupabaseAdapter = {
-  _headers() {
+  _h() {
     return {
       'Content-Type': 'application/json',
       'apikey': SUPABASE_KEY,
@@ -62,402 +38,226 @@ const SupabaseAdapter = {
     };
   },
 
-  /**
-   * Lấy toàn bộ kỷ niệm, sắp xếp mới nhất trước
-   * @returns {Promise<Array>}
-   */
-  async getAll() {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/memories?select=*&order=created_at.desc`,
-      { headers: this._headers() }
-    );
-    if (!res.ok) throw new Error(`Supabase GET thất bại: ${res.status}`);
+  // ── memories ──
+  async getAllMemories() {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/memories?select=*&order=created_at.desc`, { headers: this._h() });
+    if (!res.ok) throw new Error(`GET memories thất bại: ${res.status}`);
     return res.json();
   },
-
-  /**
-   * Thêm một kỷ niệm mới
-   * Chỉ gửi đúng 3 cột có trong bảng: title, media_url, media_type
-   * (id và created_at do Supabase tự sinh)
-   * @param {{title:string, media_url:string, media_type:string}} record
-   * @returns {Promise<Object>}
-   */
-  async insert(record) {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/memories`,
-      {
-        method: 'POST',
-        headers: { ...this._headers(), 'Prefer': 'return=representation' },
-        body: JSON.stringify(record),
-      }
-    );
+  async insertMemory(record) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/memories`, {
+      method: 'POST',
+      headers: { ...this._h(), 'Prefer': 'return=representation' },
+      body: JSON.stringify(record),
+    });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      const detail = err.message || err.details || err.hint || `HTTP ${res.status}`;
-      throw new Error(`Supabase INSERT thất bại: ${detail}`);
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.message || `INSERT memory thất bại: ${res.status}`);
     }
     const rows = await res.json();
     return rows[0];
   },
-
-  /**
-   * Cập nhật kỷ niệm theo id
-   * @param {number|string} id - id bigint của row
-   * @param {Object} updates
-   * @returns {Promise<Object>}
-   */
-  async update(id, updates) {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/memories?id=eq.${id}`,
-      {
-        method: 'PATCH',
-        headers: { ...this._headers(), 'Prefer': 'return=representation' },
-        body: JSON.stringify(updates),
-      }
-    );
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || `Supabase UPDATE thất bại: ${res.status}`);
-    }
+  async updateMemory(id, updates) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/memories?id=eq.${id}`, {
+      method: 'PATCH',
+      headers: { ...this._h(), 'Prefer': 'return=representation' },
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) throw new Error(`UPDATE memory thất bại: ${res.status}`);
     const rows = await res.json();
     return rows[0];
   },
-
-  /**
-   * Xóa kỷ niệm theo id
-   * @param {number|string} id
-   */
-  async delete(id) {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/memories?id=eq.${id}`,
-      { method: 'DELETE', headers: this._headers() }
-    );
-    if (!res.ok) throw new Error(`Supabase DELETE thất bại: ${res.status}`);
+  async deleteMemory(id) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/memories?id=eq.${id}`, { method: 'DELETE', headers: this._h() });
+    if (!res.ok) throw new Error(`DELETE memory thất bại: ${res.status}`);
   },
 
-  // ── Bảng settings: lưu ảnh khung tròn + video nền ──
+  // ── memory_media ──
+  async getMedia(memoryId) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/memory_media?memory_id=eq.${memoryId}&order=position.asc`, { headers: this._h() });
+    if (!res.ok) return [];
+    return res.json();
+  },
+  async insertMedia(memoryId, items) {
+    if (!items.length) return;
+    const records = items.map((it, i) => ({ memory_id: memoryId, media_url: it.url, media_type: it.type, position: i }));
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/memory_media`, {
+      method: 'POST',
+      headers: { ...this._h(), 'Prefer': 'return=minimal' },
+      body: JSON.stringify(records),
+    });
+    if (!res.ok) {
+      const e = await res.json().catch(() => ({}));
+      throw new Error(e.message || `INSERT media thất bại: ${res.status}`);
+    }
+  },
+  async deleteMedia(memoryId) {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/memory_media?memory_id=eq.${memoryId}`, { method: 'DELETE', headers: this._h() });
+    if (!res.ok) throw new Error(`DELETE media thất bại: ${res.status}`);
+  },
 
+  // ── settings ──
   async getSetting(key) {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/settings?key=eq.${encodeURIComponent(key)}&select=value&limit=1`,
-      { headers: this._headers() }
-    );
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/settings?key=eq.${encodeURIComponent(key)}&select=value&limit=1`, { headers: this._h() });
     if (!res.ok) return null;
     const rows = await res.json();
-    return rows.length > 0 ? rows[0].value : null;
+    return rows.length ? rows[0].value : null;
   },
-
   async setSetting(key, value) {
-    // Dùng upsert: nếu key đã tồn tại thì update, chưa có thì insert
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/settings`,
-      {
-        method: 'POST',
-        headers: { ...this._headers(), 'Prefer': 'resolution=merge-duplicates,return=representation' },
-        body: JSON.stringify({ key, value }),
-      }
-    );
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || `Supabase setSetting thất bại: ${res.status}`);
-    }
-    return res.json();
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/settings`, {
+      method: 'POST',
+      headers: { ...this._h(), 'Prefer': 'resolution=merge-duplicates,return=representation' },
+      body: JSON.stringify({ key, value }),
+    });
+    if (!res.ok) throw new Error(`setSetting thất bại: ${res.status}`);
   },
 };
 
 // ====================================================
-// STORAGE ADAPTER (lớp trung gian — giữ tên gốc)
-// Chuyển đổi giữa định dạng Supabase ↔ AppState
+// APP STATE
 // ====================================================
-
-const StorageAdapter = {
-  /**
-   * Tải toàn bộ kỷ niệm từ Supabase
-   * Chuyển đổi cột Supabase → định dạng AppState
-   */
-  async getMemories() {
-    try {
-      const rows = await SupabaseAdapter.getAll();
-      return rows.map(row => this._rowToMemory(row));
-    } catch (e) {
-      console.error('Lỗi tải kỷ niệm từ Supabase:', e);
-      showToast('⚠️ Không thể tải dữ liệu từ cloud!', 'error');
-      return [];
-    }
-  },
-
-  /** Chuyển row Supabase → object memory dùng trong app */
-  _rowToMemory(row) {
-    // Bảng có đủ: id, title, media_url, media_type, created_at, date, description
-    const dateStr = row.date || (row.created_at ? row.created_at.substring(0, 10) : '');
-    return {
-      id: String(row.id),
-      supabaseId: row.id,
-      title: row.title || '',
-      date: dateStr,
-      description: row.description || '',
-      mediaType: row.media_type || 'image',
-      mediaData: row.media_url || null,
-      hasMedia: !!row.media_url,
-      createdAt: row.created_at,
-    };
-  },
-
-  // ── Ảnh khung tròn: upload Cloudinary → lưu URL vào Supabase settings ──
-  async saveCounterPhoto(file) {
-    const uploaded = await CloudinaryAdapter.upload(file);
-    await SupabaseAdapter.setSetting('counter_photo', uploaded.secure_url);
-    return uploaded.secure_url;
-  },
-  async getCounterPhoto() {
-    try { return await SupabaseAdapter.getSetting('counter_photo'); } catch(e) { return null; }
-  },
-
-  // ── Video nền: upload Cloudinary → lưu URL vào Supabase settings ──
-  async saveBgVideo(file) {
-    const uploaded = await CloudinaryAdapter.upload(file);
-    await SupabaseAdapter.setSetting('bg_video', uploaded.secure_url);
-    return uploaded.secure_url;
-  },
-  async getBgVideo() {
-    try { return await SupabaseAdapter.getSetting('bg_video'); } catch(e) { return null; }
-  },
+const AppState = {
+  memories: [],
+  // Multi-upload state
+  pendingFiles: [],      // [{file, blobUrl, type}] — files mới chưa upload
+  existingMedia: [],     // [{id, media_url, media_type, position}] — media đã lưu (khi edit)
+  editingId: null,
+  editingSupabaseId: null,
+  // Lightbox
+  lbItems: [],
+  lbIndex: 0,
+  counterInterval: null,
 };
 
 // ====================================================
-// UPLOAD FUNCTIONS (mới)
+// LOAD DỮ LIỆU TỪ SUPABASE
 // ====================================================
-
-/**
- * Upload file lên Cloudinary
- * @param {File} file
- * @returns {Promise<{secure_url, media_type}>}
- */
-async function uploadToCloudinary(file) {
-  const result = await CloudinaryAdapter.upload(file);
-  return {
-    secure_url: result.secure_url,
-    media_type: result.resource_type,
-  };
-}
-
-/**
- * Lưu metadata kỷ niệm vào Supabase
- * @param {{title, media_url, media_type}} record — chỉ 3 cột có trong bảng
- * @returns {Promise<Object>} row đã tạo
- */
-async function saveMemoryToSupabase(record) {
-  console.log('[Supabase] INSERT record:', JSON.stringify(record));
-  const result = await SupabaseAdapter.insert(record);
-  console.log('[Supabase] INSERT thành công, row:', result);
-  return result;
-}
-
-/**
- * Tải toàn bộ kỷ niệm từ Supabase và cập nhật AppState + UI
- */
 async function loadMemoriesFromSupabase() {
-  AppState.memories = await StorageAdapter.getMemories();
+  try {
+    const rows = await SupabaseAdapter.getAllMemories();
+    AppState.memories = rows.map(r => ({
+      id: String(r.id),
+      supabaseId: r.id,
+      title: r.title || '',
+      date: r.date || (r.created_at ? r.created_at.substring(0, 10) : ''),
+      description: r.description || '',
+      mediaType: r.media_type || 'image',
+      mediaData: r.media_url || null,
+      createdAt: r.created_at,
+    }));
+  } catch(e) {
+    console.error('Lỗi tải kỷ niệm:', e);
+    showToast('⚠️ Không thể tải dữ liệu!', 'error');
+    AppState.memories = [];
+  }
   renderTimeline();
   renderAdminMemoryList();
 }
 
 // ====================================================
-// KHU VỰC QUẢN LÝ ẢNH VÀ VIDEO
-// State toàn cục của ứng dụng
+// VIDEO NỀN
 // ====================================================
-
-/**
- * App State - Trạng thái toàn cục
- */
-const AppState = {
-  memories: [],
-  currentMediaType: 'image',
-  currentMediaFile: null,      // File object thực tế (thay cho base64)
-  currentMediaData: null,      // URL preview tạm (blob URL hoặc Cloudinary URL khi edit)
-  editingId: null,
-  editingSupabaseId: null,     // id bigint Supabase của kỷ niệm đang sửa
-  counterInterval: null,
-};
-
-// ====================================================
-// KHU VỰC VIDEO NỀN CHÍNH
-// ====================================================
-
 async function initBackgroundVideo() {
   const heroVideo = document.getElementById('heroVideo');
-
-  // Lắng nghe lỗi video mặc định (file local không có)
-  if (heroVideo) {
-    heroVideo.addEventListener('error', handleVideoError);
-    const source = heroVideo.querySelector('source');
-    if (source && (source.src.includes('background.mp4') || source.src.includes('nen(test).mp4'))) {
-      document.getElementById('videoBg').classList.add('no-video');
-    }
+  if (!heroVideo) return;
+  heroVideo.addEventListener('error', () => {
+    document.getElementById('videoBg')?.classList.add('no-video');
+  });
+  const src = heroVideo.querySelector('source')?.src || '';
+  if (src.includes('nen(test).mp4') || src.includes('background.mp4')) {
+    document.getElementById('videoBg')?.classList.add('no-video');
   }
-
-  // Tải URL video nền từ Supabase settings
   try {
-    const savedBgVideo = await StorageAdapter.getBgVideo();
-    if (savedBgVideo && heroVideo) {
-      heroVideo.src = savedBgVideo;
+    const saved = await SupabaseAdapter.getSetting('bg_video');
+    if (saved) {
+      heroVideo.src = saved;
       heroVideo.load();
       heroVideo.play().catch(() => {});
-      document.getElementById('videoBg').classList.remove('no-video');
+      document.getElementById('videoBg')?.classList.remove('no-video');
     }
-  } catch(e) {
-    console.warn('Không tải được video nền từ cloud:', e);
-  }
-}
-
-function handleVideoError() {
-  console.log('Không tìm thấy video nền, sử dụng gradient thay thế');
-  document.getElementById('videoBg').classList.add('no-video');
+  } catch(e) {}
 }
 
 async function changeBgVideo(input) {
   const file = input.files[0];
-  if (!file) return;
-
-  if (!file.type.startsWith('video/')) {
-    showToast('⚠️ Vui lòng chọn file video!', 'error');
-    return;
-  }
-
-  showToast('⏳ Đang tải video lên Cloudinary...', '');
-
+  if (!file || !file.type.startsWith('video/')) { showToast('⚠️ Chọn file video!', 'error'); return; }
+  showToast('⏳ Đang tải video lên...', '');
   try {
-    // Preview ngay bằng blob URL trong khi upload
-    const blobUrl = URL.createObjectURL(file);
     const heroVideo = document.getElementById('heroVideo');
-    if (heroVideo) {
-      heroVideo.src = blobUrl;
-      heroVideo.load();
-      heroVideo.play();
-      document.getElementById('videoBg').classList.remove('no-video');
-    }
-
-    // Upload lên Cloudinary → lưu URL vào Supabase settings
-    const cloudUrl = await StorageAdapter.saveBgVideo(file);
-
-    // Sau khi upload xong, dùng URL Cloudinary thay blob
-    if (heroVideo) heroVideo.src = cloudUrl;
-
+    const blobUrl = URL.createObjectURL(file);
+    if (heroVideo) { heroVideo.src = blobUrl; heroVideo.load(); heroVideo.play(); document.getElementById('videoBg')?.classList.remove('no-video'); }
+    const up = await CloudinaryAdapter.upload(file);
+    await SupabaseAdapter.setSetting('bg_video', up.secure_url);
+    if (heroVideo) heroVideo.src = up.secure_url;
     showToast('✓ Đã cập nhật video nền!', 'success');
-  } catch (e) {
-    console.error('Lỗi xử lý video:', e);
-    showToast('⚠️ Không thể tải video lên cloud!', 'error');
-  }
+  } catch(e) { showToast('⚠️ Lỗi: ' + e.message, 'error'); }
 }
 
 // ====================================================
-// KHUNG ẢNH TRÒN - LOVE COUNTER PHOTO
+// ẢNH KHUNG TRÒN
 // ====================================================
+async function loadCounterPhoto() {
+  try {
+    const saved = await SupabaseAdapter.getSetting('counter_photo');
+    if (saved) applyCounterPhoto(saved);
+  } catch(e) {}
+}
+
+function applyCounterPhoto(url) {
+  const img = document.getElementById('counterPhoto');
+  const ph  = document.getElementById('counterPhotoPlaceholder');
+  if (img && ph) { img.src = url; img.style.display = 'block'; ph.style.display = 'none'; }
+}
 
 async function changeCounterPhoto(input) {
   const file = input.files[0];
-  if (!file) return;
-
-  if (!file.type.startsWith('image/')) {
-    showToast('⚠️ Vui lòng chọn file ảnh!', 'error');
-    return;
-  }
-
-  showToast('⏳ Đang tải ảnh lên Cloudinary...', '');
-
+  if (!file || !file.type.startsWith('image/')) { showToast('⚠️ Chọn file ảnh!', 'error'); return; }
+  showToast('⏳ Đang tải ảnh lên...', '');
   try {
-    // Preview ngay bằng blob URL trong khi upload
-    const blobUrl = URL.createObjectURL(file);
-    applyCounterPhoto(blobUrl);
-
-    // Upload lên Cloudinary → lưu URL vào Supabase settings
-    const cloudUrl = await StorageAdapter.saveCounterPhoto(file);
-
-    // Sau khi upload xong, dùng URL Cloudinary thay blob
-    applyCounterPhoto(cloudUrl);
-
+    applyCounterPhoto(URL.createObjectURL(file));
+    const up = await CloudinaryAdapter.upload(file);
+    await SupabaseAdapter.setSetting('counter_photo', up.secure_url);
+    applyCounterPhoto(up.secure_url);
     showToast('✓ Đã cập nhật ảnh!', 'success');
-  } catch (e) {
-    console.error('Lỗi upload ảnh khung tròn:', e);
-    showToast('⚠️ Không thể tải ảnh lên cloud!', 'error');
-  }
-}
-
-function applyCounterPhoto(dataUrl) {
-  const img = document.getElementById('counterPhoto');
-  const placeholder = document.getElementById('counterPhotoPlaceholder');
-  if (img && placeholder) {
-    img.src = dataUrl;
-    img.style.display = 'block';
-    placeholder.style.display = 'none';
-  }
-}
-
-async function loadCounterPhoto() {
-  const saved = await StorageAdapter.getCounterPhoto();
-  if (saved) applyCounterPhoto(saved);
+  } catch(e) { showToast('⚠️ Lỗi: ' + e.message, 'error'); }
 }
 
 // ====================================================
-// SCROLL & NAVBAR
+// NAVBAR & SCROLL
 // ====================================================
-
 function smoothScroll(selector) {
-  const target = document.querySelector(selector);
-  if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.querySelector(selector)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function initNavbar() {
   const navbar = document.getElementById('navbar');
   window.addEventListener('scroll', () => {
-    if (window.pageYOffset > 80) {
-      navbar.classList.add('scrolled');
-    } else {
-      navbar.classList.remove('scrolled');
-    }
+    navbar?.classList.toggle('scrolled', window.pageYOffset > 80);
   }, { passive: true });
 }
 
 // ====================================================
 // ĐẾM NGÀY YÊU
 // ====================================================
-
 const LOVE_START_DATE = new Date('2025-07-11T00:00:00+07:00');
 
 function updateLoveCounter() {
-  const now = new Date();
-  const diffMs = now - LOVE_START_DATE;
-
-  if (diffMs < 0) {
-    setCounterValue('days', 0, 3);
-    setCounterValue('hours', 0, 2);
-    setCounterValue('minutes', 0, 2);
-    setCounterValue('seconds', 0, 2);
-    return;
-  }
-
-  const totalSeconds = Math.floor(diffMs / 1000);
-  const seconds      = totalSeconds % 60;
-  const totalMinutes = Math.floor(totalSeconds / 60);
-  const minutes      = totalMinutes % 60;
-  const totalHours   = Math.floor(totalMinutes / 60);
-  const hours        = totalHours % 24;
-  const days         = Math.floor(totalHours / 24);
-
-  setCounterValue('days', days, 3);
-  setCounterValue('hours', hours, 2);
-  setCounterValue('minutes', minutes, 2);
-  setCounterValue('seconds', seconds, 2);
+  const diff = Date.now() - LOVE_START_DATE;
+  if (diff < 0) { ['days','hours','minutes','seconds'].forEach(id => setCounterValue(id, 0, id==='days'?3:2)); return; }
+  const s = Math.floor(diff / 1000);
+  setCounterValue('days',    Math.floor(s / 86400), 3);
+  setCounterValue('hours',   Math.floor(s / 3600) % 24, 2);
+  setCounterValue('minutes', Math.floor(s / 60) % 60, 2);
+  setCounterValue('seconds', s % 60, 2);
 }
 
-function setCounterValue(id, value, minDigits = 2) {
+function setCounterValue(id, value, pad = 2) {
   const el = document.getElementById(id);
   if (!el) return;
-  const newText = String(value).padStart(minDigits, '0');
-  if (el.textContent !== newText) {
-    el.textContent = newText;
+  const txt = String(value).padStart(pad, '0');
+  if (el.textContent !== txt) {
+    el.textContent = txt;
     el.style.transform = 'scale(1.05)';
-    el.style.transition = 'transform 0.15s';
     setTimeout(() => { el.style.transform = 'scale(1)'; }, 150);
   }
 }
@@ -468,35 +268,22 @@ function initLoveCounter() {
 }
 
 // ====================================================
-// DÒNG THỜI GIAN
+// TIMELINE
 // ====================================================
-
 function renderTimeline() {
-  const container = document.getElementById('timelineContainer');
+  const container  = document.getElementById('timelineContainer');
   const emptyState = document.getElementById('timelineEmpty');
-  const memories = AppState.memories;
+  container.querySelectorAll('.timeline-item').forEach(el => el.remove());
 
-  // Sắp xếp theo created_at mới nhất (từ Supabase đã sort, nhưng giữ lại phòng khi cần)
-  const sorted = [...memories].sort((a, b) => {
-    const da = a.createdAt ? new Date(a.createdAt) : new Date(a.date);
-    const db_ = b.createdAt ? new Date(b.createdAt) : new Date(b.date);
-    return db_ - da;
-  });
-
-  const oldCards = container.querySelectorAll('.timeline-item');
-  oldCards.forEach(card => card.remove());
-
-  if (sorted.length === 0) {
-    emptyState.style.display = 'block';
-    return;
-  }
-
+  if (!AppState.memories.length) { emptyState.style.display = 'block'; return; }
   emptyState.style.display = 'none';
 
-  sorted.forEach((memory, index) => {
-    const item = createTimelineItem(memory, index);
+  AppState.memories.forEach((memory, i) => {
+    const item = createTimelineItem(memory, i);
     container.appendChild(item);
-    setTimeout(() => { observeScrollReveal(item); }, 0);
+    setTimeout(() => observeScrollReveal(item), 0);
+    // Load số lượng media phụ để cập nhật badge
+    loadMediaBadge(memory, item);
   });
 }
 
@@ -513,7 +300,7 @@ function createTimelineItem(memory, index) {
     <div class="timeline-card" onclick="openLightbox('${memory.id}')">
       <div class="timeline-media-wrapper">
         ${mediaHtml}
-        <div class="media-badge">${badgeText}</div>
+        <div class="media-badge" id="badge-${memory.id}">${badgeText}</div>
       </div>
       <div class="timeline-card-body">
         <div class="timeline-card-date">${dateFormatted}</div>
@@ -521,85 +308,148 @@ function createTimelineItem(memory, index) {
         <p class="timeline-card-desc">${escapeHtml(memory.description || '')}</p>
       </div>
       <div class="timeline-card-actions" onclick="event.stopPropagation()">
-        <button class="action-btn action-btn-edit" onclick="openEditMemoryModal('${memory.id}')">
-          ✏️ Sửa
-        </button>
-        <button class="action-btn action-btn-delete" onclick="confirmDeleteMemory('${memory.id}')">
-          🗑 Xóa
-        </button>
+        <button class="action-btn action-btn-edit" onclick="openEditMemoryModal('${memory.id}')">✏️ Sửa</button>
+        <button class="action-btn action-btn-delete" onclick="confirmDeleteMemory('${memory.id}')">🗑 Xóa</button>
       </div>
     </div>
     <div class="timeline-dot"></div>
     <div class="timeline-spacer"></div>
   `;
-
   return item;
+}
+
+async function loadMediaBadge(memory, item) {
+  try {
+    const rows = await SupabaseAdapter.getMedia(memory.supabaseId);
+    if (!rows.length) return;
+    const badge = item.querySelector(`#badge-${memory.id}`);
+    if (badge) {
+      const total = (memory.mediaData ? 1 : 0) + rows.length;
+      const icon  = memory.mediaType === 'video' ? '🎬' : '📷';
+      badge.textContent = total > 1 ? `${icon} ${total} ảnh/video` : badge.textContent;
+    }
+  } catch(e) {}
 }
 
 function createMediaHtml(memory) {
   if (!memory.mediaData) {
-    return `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:3rem;opacity:0.3;">
-      ${memory.mediaType === 'video' ? '🎬' : '📷'}
-    </div>`;
+    return `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:3rem;opacity:0.3;">${memory.mediaType==='video'?'🎬':'📷'}</div>`;
   }
-
   if (memory.mediaType === 'video') {
-    return `<video
-      src="${memory.mediaData}"
-      controls
-      preload="none"
-      style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;"
-      onclick="event.stopPropagation()"
-    ></video>`;
+    return `<video src="${memory.mediaData}" controls preload="none" style="position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;" onclick="event.stopPropagation()"></video>`;
   }
-
-  return `<img
-    src="${memory.mediaData}"
-    alt="${escapeHtml(memory.title)}"
-    loading="lazy"
-  />`;
+  return `<img src="${memory.mediaData}" alt="${escapeHtml(memory.title)}" loading="lazy" />`;
 }
 
 // ====================================================
-// LIGHTBOX
+// LIGHTBOX — SLIDESHOW
 // ====================================================
-
-function openLightbox(id) {
+async function openLightbox(id) {
   const memory = AppState.memories.find(m => m.id === id);
   if (!memory) return;
 
-  const lightbox = document.getElementById('lightbox');
-  const mediaContainer = document.getElementById('lightboxMedia');
+  // Gộp ảnh chính + tất cả media phụ
+  AppState.lbItems = [];
+  if (memory.mediaData) AppState.lbItems.push({ url: memory.mediaData, type: memory.mediaType });
 
-  if (memory.mediaData) {
-    if (memory.mediaType === 'video') {
-      mediaContainer.innerHTML = `<video src="${memory.mediaData}" controls style="width:100%;max-height:60vh;object-fit:contain;"></video>`;
-    } else {
-      mediaContainer.innerHTML = `<img src="${memory.mediaData}" alt="${escapeHtml(memory.title)}" style="width:100%;max-height:60vh;object-fit:contain;" />`;
-    }
+  try {
+    const extras = await SupabaseAdapter.getMedia(memory.supabaseId);
+    extras.forEach(e => AppState.lbItems.push({ url: e.media_url, type: e.media_type }));
+  } catch(e) {}
+
+  AppState.lbIndex = 0;
+
+  // Thông tin text
+  document.getElementById('lightboxTitle').textContent = memory.title;
+  document.getElementById('lightboxDate').textContent  = formatDate(memory.date);
+  document.getElementById('lightboxDesc').textContent  = memory.description || '';
+
+  // Thêm nút điều hướng nếu chưa có
+  ensureLightboxNav();
+  renderLightboxSlide();
+  updateLightboxNav();
+
+  document.getElementById('lightbox').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function ensureLightboxNav() {
+  if (document.getElementById('lbPrev')) return;
+  // Nút nằm trong lightboxMedia để hiện đè lên ảnh
+  const media = document.getElementById('lightboxMedia');
+  if (!media) return;
+
+  const prev = document.createElement('button');
+  prev.id = 'lbPrev'; prev.className = 'lb-nav-btn lb-prev'; prev.innerHTML = '&#10094;';
+  prev.onclick = e => { e.stopPropagation(); slideBy(-1); };
+
+  const next = document.createElement('button');
+  next.id = 'lbNext'; next.className = 'lb-nav-btn lb-next'; next.innerHTML = '&#10095;';
+  next.onclick = e => { e.stopPropagation(); slideBy(1); };
+
+  const counter = document.createElement('div');
+  counter.id = 'lbCounter'; counter.className = 'lb-counter';
+
+  media.appendChild(prev);
+  media.appendChild(next);
+  media.appendChild(counter);
+}
+
+function renderLightboxSlide() {
+  const item = AppState.lbItems[AppState.lbIndex];
+  const container = document.getElementById('lightboxMedia');
+  if (!item) return;
+
+  // Pause video cũ
+  container.querySelector('video')?.pause();
+
+  // Tạo element media mới mà không xóa nút nav
+  const old = container.querySelector('img, video');
+  if (old) old.remove();
+
+  let el;
+  if (item.type === 'video') {
+    el = document.createElement('video');
+    el.src = item.url;
+    el.controls = true;
+    el.autoplay = true;
+    el.style.cssText = 'width:100%;max-height:60vh;object-fit:contain;display:block;';
   } else {
-    mediaContainer.innerHTML = `<div style="height:200px;display:flex;align-items:center;justify-content:center;font-size:4rem;opacity:0.3;">${memory.mediaType === 'video' ? '🎬' : '📷'}</div>`;
+    el = document.createElement('img');
+    el.src = item.url;
+    el.style.cssText = 'width:100%;max-height:60vh;object-fit:contain;display:block;';
   }
 
-  document.getElementById('lightboxTitle').textContent = memory.title;
-  document.getElementById('lightboxDate').textContent = formatDate(memory.date);
-  document.getElementById('lightboxDesc').textContent = memory.description || '';
+  // Chèn ảnh/video vào đầu, trước các nút nav
+  container.insertBefore(el, container.firstChild);
+}
 
-  lightbox.classList.add('active');
-  document.body.style.overflow = 'hidden';
+function slideBy(dir) {
+  const total = AppState.lbItems.length;
+  if (total <= 1) return;
+  AppState.lbIndex = (AppState.lbIndex + dir + total) % total;
+  renderLightboxSlide();
+  updateLightboxNav();
+}
+
+function updateLightboxNav() {
+  const total = AppState.lbItems.length;
+  const show  = total > 1;
+  document.getElementById('lbPrev')?.style.setProperty('display', show ? 'flex' : 'none');
+  document.getElementById('lbNext')?.style.setProperty('display', show ? 'flex' : 'none');
+  const counter = document.getElementById('lbCounter');
+  if (counter) counter.textContent = show ? `${AppState.lbIndex + 1} / ${total}` : '';
 }
 
 function closeLightbox() {
   document.getElementById('lightbox').classList.remove('active');
   document.body.style.overflow = '';
-  const video = document.querySelector('#lightboxMedia video');
-  if (video) video.pause();
+  document.getElementById('lightboxMedia').querySelector('video')?.pause();
 }
 
 // ====================================================
 // ADMIN PANEL
 // ====================================================
-
 function openAdminPanel() {
   document.getElementById('adminPanel').classList.add('active');
   document.getElementById('modalOverlay').classList.add('active');
@@ -615,63 +465,126 @@ function closeAdminPanel() {
 
 function renderAdminMemoryList() {
   const list = document.getElementById('adminMemoryList');
-  const memories = AppState.memories;
-
-  if (memories.length === 0) {
+  if (!AppState.memories.length) {
     list.innerHTML = '<p style="font-size:0.82rem;color:rgba(255,255,255,0.3);text-align:center;padding:20px;">Chưa có kỷ niệm nào</p>';
     return;
   }
-
-  const sorted = [...memories].sort((a, b) => {
-    const da = a.createdAt ? new Date(a.createdAt) : new Date(a.date);
-    const db_ = b.createdAt ? new Date(b.createdAt) : new Date(b.date);
-    return db_ - da;
-  });
-
-  list.innerHTML = sorted.map(memory => `
+  list.innerHTML = AppState.memories.map(m => `
     <div class="admin-memory-item">
-      ${memory.mediaData && memory.mediaType === 'image'
-        ? `<img class="admin-memory-thumb" src="${memory.mediaData}" alt="${escapeHtml(memory.title)}" />`
-        : `<div class="admin-memory-thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem;">${memory.mediaType === 'video' ? '🎬' : '📷'}</div>`
-      }
+      ${m.mediaData && m.mediaType === 'image'
+        ? `<img class="admin-memory-thumb" src="${m.mediaData}" alt="${escapeHtml(m.title)}" />`
+        : `<div class="admin-memory-thumb" style="display:flex;align-items:center;justify-content:center;font-size:1.5rem;">${m.mediaType==='video'?'🎬':'📷'}</div>`}
       <div class="admin-memory-info">
-        <div class="admin-memory-title">${escapeHtml(memory.title)}</div>
-        <div class="admin-memory-date">${formatDate(memory.date)}</div>
+        <div class="admin-memory-title">${escapeHtml(m.title)}</div>
+        <div class="admin-memory-date">${formatDate(m.date)}</div>
       </div>
       <div class="admin-memory-btns">
-        <button class="admin-mini-btn admin-mini-btn-edit" onclick="openEditMemoryModal('${memory.id}')">Sửa</button>
-        <button class="admin-mini-btn admin-mini-btn-delete" onclick="confirmDeleteMemory('${memory.id}')">Xóa</button>
+        <button class="admin-mini-btn admin-mini-btn-edit" onclick="openEditMemoryModal('${m.id}')">Sửa</button>
+        <button class="admin-mini-btn admin-mini-btn-delete" onclick="confirmDeleteMemory('${m.id}')">Xóa</button>
       </div>
     </div>
   `).join('');
 }
 
 // ====================================================
+// MULTI-UPLOAD: CHỌN ẢNH/VIDEO
+// ====================================================
+function handleMediaSelect(input) {
+  const files = Array.from(input.files);
+  if (!files.length) return;
+
+  files.forEach(file => {
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return;
+    AppState.pendingFiles.push({
+      file,
+      blobUrl: URL.createObjectURL(file),
+      type: file.type.startsWith('video/') ? 'video' : 'image',
+    });
+  });
+
+  renderMediaPreviewGrid();
+  input.value = '';
+  showToast(`✓ Đã chọn thêm ${files.length} file`, 'success');
+}
+
+function renderMediaPreviewGrid() {
+  const grid = document.getElementById('mediaPreviewGrid');
+  const ph   = document.getElementById('mediaPlaceholder');
+  if (!grid) return;
+
+  const existHtml = AppState.existingMedia.map((item, i) => `
+    <div class="mpg-item">
+      ${item.media_type === 'video'
+        ? `<video src="${item.media_url}" class="mpg-thumb"></video>`
+        : `<img src="${item.media_url}" class="mpg-thumb" loading="lazy" />`}
+      <div class="mpg-badge">${item.media_type === 'video' ? '🎬' : '📷'}</div>
+      <button class="mpg-del" onclick="removeExisting(${i})">✕</button>
+    </div>
+  `).join('');
+
+  const newHtml = AppState.pendingFiles.map((item, i) => `
+    <div class="mpg-item">
+      ${item.type === 'video'
+        ? `<video src="${item.blobUrl}" class="mpg-thumb"></video>`
+        : `<img src="${item.blobUrl}" class="mpg-thumb" loading="lazy" />`}
+      <div class="mpg-badge mpg-badge--new">${item.type === 'video' ? '🎬' : '📷'} mới</div>
+      <button class="mpg-del" onclick="removePending(${i})">✕</button>
+    </div>
+  `).join('');
+
+  const total = AppState.existingMedia.length + AppState.pendingFiles.length;
+  grid.innerHTML = existHtml + newHtml;
+  grid.style.display = total ? 'grid' : 'none';
+  if (ph) ph.style.display = total ? 'none' : 'flex';
+}
+
+function removeExisting(i) {
+  AppState.existingMedia.splice(i, 1);
+  renderMediaPreviewGrid();
+}
+
+function removePending(i) {
+  URL.revokeObjectURL(AppState.pendingFiles[i].blobUrl);
+  AppState.pendingFiles.splice(i, 1);
+  renderMediaPreviewGrid();
+}
+
+function resetMediaState() {
+  AppState.pendingFiles.forEach(f => URL.revokeObjectURL(f.blobUrl));
+  AppState.pendingFiles  = [];
+  AppState.existingMedia = [];
+  const grid = document.getElementById('mediaPreviewGrid');
+  const ph   = document.getElementById('mediaPlaceholder');
+  const inp  = document.getElementById('memoryMediaInput');
+  if (grid) { grid.innerHTML = ''; grid.style.display = 'none'; }
+  if (ph)   ph.style.display = 'flex';
+  if (inp)  inp.value = '';
+}
+
+// ====================================================
 // MODAL THÊM / SỬA KỶ NIỆM
 // ====================================================
-
 function openAddMemoryModal() {
-  resetMemoryForm();
+  resetMediaState();
   AppState.editingId = null;
   AppState.editingSupabaseId = null;
-  AppState.currentMediaFile = null;
-  AppState.currentMediaData = null;
   document.getElementById('memoryModalTitle').textContent = '✦ Thêm Kỷ Niệm Mới';
+  document.getElementById('editMemoryId').value = '';
+  document.getElementById('memoryTitle').value = '';
+  document.getElementById('memoryDate').value = getTodayVN();
+  document.getElementById('memoryDescription').value = '';
   document.getElementById('memoryModal').classList.add('active');
   document.getElementById('modalOverlay').classList.add('active');
   document.body.style.overflow = 'hidden';
-  document.getElementById('memoryDate').value = getTodayVN();
 }
 
-function openEditMemoryModal(id) {
+async function openEditMemoryModal(id) {
   const memory = AppState.memories.find(m => m.id === id);
   if (!memory) return;
 
-  resetMemoryForm();
+  resetMediaState();
   AppState.editingId = id;
   AppState.editingSupabaseId = memory.supabaseId;
-  AppState.currentMediaFile = null;
-  AppState.currentMediaData = memory.mediaData || null; // Cloudinary URL
 
   document.getElementById('memoryModalTitle').textContent = '✦ Chỉnh Sửa Kỷ Niệm';
   document.getElementById('editMemoryId').value = id;
@@ -679,27 +592,20 @@ function openEditMemoryModal(id) {
   document.getElementById('memoryDate').value = memory.date;
   document.getElementById('memoryDescription').value = memory.description || '';
 
-  switchMediaType(memory.mediaType || 'image');
+  // Load media hiện có (ảnh chính + phụ)
+  const allMedia = [];
+  if (memory.mediaData) allMedia.push({ id: null, media_url: memory.mediaData, media_type: memory.mediaType, position: -1, isMain: true });
+  try {
+    const extras = await SupabaseAdapter.getMedia(memory.supabaseId);
+    extras.forEach(e => allMedia.push({ ...e, isMain: false }));
+  } catch(e) {}
+  AppState.existingMedia = allMedia;
+  renderMediaPreviewGrid();
 
-  // Hiển thị preview media hiện tại (Cloudinary URL)
-  if (memory.mediaData) {
-    if (memory.mediaType === 'video') {
-      const preview = document.getElementById('videoPreview');
-      preview.src = memory.mediaData;
-      preview.style.display = 'block';
-      document.getElementById('videoPlaceholder').style.display = 'none';
-    } else {
-      const preview = document.getElementById('imagePreview');
-      preview.src = memory.mediaData;
-      preview.style.display = 'block';
-      document.getElementById('imagePlaceholder').style.display = 'none';
-    }
-  }
-
+  document.getElementById('adminPanel').classList.remove('active');
   document.getElementById('memoryModal').classList.add('active');
   document.getElementById('modalOverlay').classList.add('active');
   document.body.style.overflow = 'hidden';
-  document.getElementById('adminPanel').classList.remove('active');
 }
 
 function closeMemoryModal() {
@@ -708,81 +614,118 @@ function closeMemoryModal() {
     document.getElementById('modalOverlay').classList.remove('active');
     document.body.style.overflow = '';
   }
-  resetMemoryForm();
+  resetMediaState();
 }
 
 // ====================================================
-// LƯU KỶ NIỆM — Cloudinary → Supabase
+// NÉN ẢNH — giảm kích thước xuống dưới giới hạn Cloudinary (10MB)
 // ====================================================
+async function compressImage(file, maxSizeMB = 9) {
+  return new Promise(resolve => {
+    if (file.size <= maxSizeMB * 1024 * 1024) { resolve(file); return; }
+    const img = new Image();
+    const blobUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(blobUrl);
+      const ratio  = Math.sqrt((maxSizeMB * 1024 * 1024) / file.size);
+      const canvas = document.createElement('canvas');
+      canvas.width  = Math.floor(img.width  * ratio);
+      canvas.height = Math.floor(img.height * ratio);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(
+        blob => resolve(blob
+          ? new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() })
+          : file),
+        'image/jpeg', 0.85
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(blobUrl); resolve(file); };
+    img.src = blobUrl;
+  });
+}
 
+// ====================================================
+// LƯU KỶ NIỆM
+// ====================================================
 async function saveMemory() {
-  const title = document.getElementById('memoryTitle').value.trim();
-
-  if (!title) {
-    showToast('⚠️ Vui lòng nhập tiêu đề!', 'error');
-    document.getElementById('memoryTitle').focus();
-    return;
-  }
-
-  const date = document.getElementById('memoryDate').value;
+  const title       = document.getElementById('memoryTitle').value.trim();
+  const date        = document.getElementById('memoryDate').value;
   const description = document.getElementById('memoryDescription').value.trim();
 
-  if (!date) {
-    showToast('⚠️ Vui lòng chọn ngày!', 'error');
-    document.getElementById('memoryDate').focus();
-    return;
+  if (!title) { showToast('⚠️ Vui lòng nhập tiêu đề!', 'error'); document.getElementById('memoryTitle').focus(); return; }
+  if (!date)  { showToast('⚠️ Vui lòng chọn ngày!', 'error'); return; }
+  if (!AppState.pendingFiles.length && !AppState.existingMedia.length && !AppState.editingId) {
+    showToast('⚠️ Vui lòng chọn ít nhất 1 ảnh hoặc video!', 'error'); return;
   }
 
-  // Vô hiệu hóa nút Lưu để tránh double-submit
   const saveBtn = document.querySelector('.memory-modal-footer .btn-primary');
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Đang lưu...'; }
 
   try {
-    let mediaUrl  = AppState.currentMediaData;
-    let mediaType = AppState.currentMediaType;
+    // 1. Upload tất cả file mới lên Cloudinary (có nén ảnh nếu > 9MB)
+    const uploadedNew = [];
+    for (let i = 0; i < AppState.pendingFiles.length; i++) {
+      const f = AppState.pendingFiles[i];
+      showToast(`⏳ Đang tải file ${i + 1}/${AppState.pendingFiles.length}...`, '');
 
-    // DEBUG
-    console.log('[saveMemory] currentMediaFile:', AppState.currentMediaFile);
-    console.log('[saveMemory] currentMediaData:', AppState.currentMediaData);
-    console.log('[saveMemory] currentMediaType:', AppState.currentMediaType);
-    console.log('[saveMemory] editingId:', AppState.editingId);
+      // Video quá lớn (>100MB) → bỏ qua
+      if (f.type === 'video' && f.file.size > 100 * 1024 * 1024) {
+        showToast(`⚠️ Video "${f.file.name}" quá lớn (>100MB), đã bỏ qua.`, 'error');
+        continue;
+      }
 
-    if (AppState.currentMediaFile) {
-      showToast('⏳ Đang tải lên Cloudinary...', '');
-      console.log('[saveMemory] → Gọi uploadToCloudinary...');
-      const uploaded = await uploadToCloudinary(AppState.currentMediaFile);
-      mediaUrl  = uploaded.secure_url;
-      mediaType = uploaded.media_type;
-      console.log('[saveMemory] → Upload xong, mediaUrl:', mediaUrl);
-    } else {
-      console.warn('[saveMemory] KHÔNG có file để upload — currentMediaFile là null/undefined');
+      // Ảnh lớn hơn 9MB → nén trước khi upload
+      let fileToUpload = f.file;
+      if (f.type === 'image' && f.file.size > 9 * 1024 * 1024) {
+        showToast(`⏳ Đang nén ảnh ${i + 1}...`, '');
+        fileToUpload = await compressImage(f.file);
+      }
+
+      try {
+        const up = await CloudinaryAdapter.upload(fileToUpload);
+        uploadedNew.push({ url: up.secure_url, type: f.type });
+      } catch(uploadErr) {
+        showToast(`⚠️ Lỗi upload "${f.file.name}": ${uploadErr.message}`, 'error');
+      }
     }
 
-    if (AppState.editingId && AppState.editingSupabaseId) {
-      // ── CẬP NHẬT kỷ niệm hiện có ──
-      const updates = { title, date, description, media_type: mediaType };
-      if (AppState.currentMediaFile) updates.media_url = mediaUrl;
+    // 2. Ảnh đầu tiên làm thumbnail (ảnh chính trong bảng memories)
+    const allMediaUrls = [
+      ...AppState.existingMedia.filter(e => e.isMain).map(e => ({ url: e.media_url, type: e.media_type })),
+      ...uploadedNew,
+    ];
+    const firstMedia = allMediaUrls[0] || { url: '', type: 'image' };
 
-      await SupabaseAdapter.update(AppState.editingSupabaseId, updates);
-      showToast('✓ Đã cập nhật kỷ niệm!', 'success');
-    } else {
-      // ── THÊM KỶ NIỆM MỚI ──
-      await saveMemoryToSupabase({
-        title,
-        date,
-        description,
-        media_url: mediaUrl || '',
-        media_type: mediaType,
+    if (AppState.editingId && AppState.editingSupabaseId) {
+      // ── UPDATE ──
+      await SupabaseAdapter.updateMemory(AppState.editingSupabaseId, {
+        title, date, description,
+        media_url: firstMedia.url,
+        media_type: firstMedia.type,
       });
+      // Xóa toàn bộ media phụ cũ rồi insert lại
+      await SupabaseAdapter.deleteMedia(AppState.editingSupabaseId);
+      const mediaPhụ = allMediaUrls.slice(1);
+      if (mediaPhụ.length) await SupabaseAdapter.insertMedia(AppState.editingSupabaseId, mediaPhụ);
+      showToast('✓ Đã cập nhật kỷ niệm!', 'success');
+
+    } else {
+      // ── INSERT ──
+      const row = await SupabaseAdapter.insertMemory({
+        title, date, description,
+        media_url: firstMedia.url,
+        media_type: firstMedia.type,
+      });
+      const mediaPhụ = allMediaUrls.slice(1);
+      if (mediaPhụ.length) await SupabaseAdapter.insertMedia(row.id, mediaPhụ);
       showToast('✓ Đã thêm kỷ niệm mới!', 'success');
     }
 
-    // Reload từ Supabase để đồng bộ hoàn toàn
     await loadMemoriesFromSupabase();
     closeMemoryModal();
 
-  } catch (e) {
-    console.error('Lỗi lưu kỷ niệm:', e);
+  } catch(e) {
+    console.error('Lỗi lưu:', e);
     showToast(`⚠️ Lỗi: ${e.message}`, 'error');
   } finally {
     if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Lưu'; }
@@ -792,173 +735,25 @@ async function saveMemory() {
 // ====================================================
 // XÓA KỶ NIỆM
 // ====================================================
-
 async function confirmDeleteMemory(id) {
   const memory = AppState.memories.find(m => m.id === id);
   if (!memory) return;
-
-  if (!confirm(`Bạn có chắc muốn xóa kỷ niệm "${memory.title}"?\n\nHành động này không thể hoàn tác.`)) return;
-
+  if (!confirm(`Xóa kỷ niệm "${memory.title}"?\nHành động không thể hoàn tác.`)) return;
   try {
-    await SupabaseAdapter.delete(memory.supabaseId);
+    await SupabaseAdapter.deleteMedia(memory.supabaseId);
+    await SupabaseAdapter.deleteMemory(memory.supabaseId);
     await loadMemoriesFromSupabase();
     showToast('✓ Đã xóa kỷ niệm', 'success');
-  } catch (e) {
-    console.error('Lỗi xóa kỷ niệm:', e);
-    showToast(`⚠️ Lỗi xóa: ${e.message}`, 'error');
-  }
+  } catch(e) { showToast(`⚠️ Lỗi: ${e.message}`, 'error'); }
 }
 
 // ====================================================
-// RESET FORM
+// HELPER FUNCTIONS
 // ====================================================
-
-function resetMemoryForm() {
-  document.getElementById('editMemoryId').value = '';
-  document.getElementById('memoryTitle').value = '';
-  document.getElementById('memoryDate').value = '';
-  document.getElementById('memoryDescription').value = '';
-  document.getElementById('memoryImageInput').value = '';
-  document.getElementById('memoryVideoInput').value = '';
-
-  const imagePreview = document.getElementById('imagePreview');
-  imagePreview.src = '';
-  imagePreview.style.display = 'none';
-  document.getElementById('imagePlaceholder').style.display = 'flex';
-
-  const videoPreview = document.getElementById('videoPreview');
-  videoPreview.src = '';
-  videoPreview.style.display = 'none';
-  document.getElementById('videoPlaceholder').style.display = 'flex';
-
-  switchMediaType('image');
-  AppState.currentMediaFile = null;
-  AppState.currentMediaData = null;
-  AppState.editingId = null;
-  AppState.editingSupabaseId = null;
-}
-
-// ====================================================
-// CHUYỂN ĐỔI LOẠI MEDIA
-// ====================================================
-
-function switchMediaType(type) {
-  AppState.currentMediaType = type;
-
-  const imageGroup = document.getElementById('imageUploadGroup');
-  const videoGroup = document.getElementById('videoUploadGroup');
-  const imageBtnEl = document.getElementById('typeImageBtn');
-  const videoBtnEl = document.getElementById('typeVideoBtn');
-
-  if (type === 'image') {
-    imageGroup.style.display = 'block';
-    videoGroup.style.display = 'none';
-    imageBtnEl.classList.add('active');
-    videoBtnEl.classList.remove('active');
-  } else {
-    imageGroup.style.display = 'none';
-    videoGroup.style.display = 'block';
-    imageBtnEl.classList.remove('active');
-    videoBtnEl.classList.add('active');
-  }
-
-  AppState.currentMediaFile = null;
-  AppState.currentMediaData = null;
-}
-
-// ====================================================
-// PREVIEW ẢNH / VIDEO (lưu File object, không base64)
-// ====================================================
-
-async function previewImage(input) {
-  const file = input.files[0];
-  if (!file) return;
-
-  if (!file.type.startsWith('image/')) {
-    showToast('⚠️ Vui lòng chọn file ảnh!', 'error');
-    return;
-  }
-
-  // Giới hạn nhẹ cho Cloudinary free tier (~10MB khuyến nghị)
-  if (file.size > 100 * 1024 * 1024) {
-    showToast('⚠️ Ảnh quá lớn (>100MB)!', 'error');
-    return;
-  }
-
-  try {
-    // Lưu File object để upload lên Cloudinary khi save
-    AppState.currentMediaFile = file;
-    AppState.currentMediaData = null;
-
-    console.log('[previewImage] File đã lưu vào AppState.currentMediaFile:', file.name, file.size);
-
-    const blobUrl = URL.createObjectURL(file);
-    const preview = document.getElementById('imagePreview');
-    preview.src = blobUrl;
-    preview.style.display = 'block';
-    document.getElementById('imagePlaceholder').style.display = 'none';
-    showToast('✓ Ảnh đã sẵn sàng!', 'success');
-  } catch (e) {
-    showToast('⚠️ Không thể đọc file ảnh!', 'error');
-  }
-}
-
-async function previewVideo(input) {
-  const file = input.files[0];
-  if (!file) return;
-
-  if (!file.type.startsWith('video/')) {
-    showToast('⚠️ Vui lòng chọn file video!', 'error');
-    return;
-  }
-
-  if (file.size > 500 * 1024 * 1024) {
-    showToast('⚠️ Video quá lớn (>500MB)!', 'error');
-    return;
-  }
-
-  try {
-    AppState.currentMediaFile = file;
-    AppState.currentMediaData = null;
-
-    console.log('[previewVideo] File đã lưu vào AppState.currentMediaFile:', file.name, file.size);
-
-    const blobUrl = URL.createObjectURL(file);
-    const preview = document.getElementById('videoPreview');
-    preview.src = blobUrl;
-    preview.style.display = 'block';
-    document.getElementById('videoPlaceholder').style.display = 'none';
-    showToast('✓ Video đã sẵn sàng!', 'success');
-  } catch (e) {
-    showToast('⚠️ Không thể đọc file video!', 'error');
-  }
-}
-
-// ====================================================
-// TIỆN ÍCH - Helper Functions
-// ====================================================
-
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target.result);
-    reader.onerror = () => reject(new Error('Không thể đọc file'));
-    reader.readAsDataURL(file);
-  });
-}
-
-function generateId() {
-  return 'mem_' + Date.now().toString(36) + '_' + Math.random().toString(36).substr(2, 9);
-}
-
-function formatDate(dateString) {
-  if (!dateString) return '';
-  try {
-    const date = new Date(dateString + 'T00:00:00');
-    return date.toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' });
-  } catch (e) {
-    return dateString;
-  }
+function formatDate(d) {
+  if (!d) return '';
+  try { return new Date(d + 'T00:00:00').toLocaleDateString('vi-VN', { day: '2-digit', month: 'long', year: 'numeric' }); }
+  catch(e) { return d; }
 }
 
 function getTodayVN() {
@@ -967,28 +762,19 @@ function getTodayVN() {
 
 function escapeHtml(str) {
   if (!str) return '';
-  const div = document.createElement('div');
-  div.appendChild(document.createTextNode(str));
-  return div.innerHTML;
+  const d = document.createElement('div');
+  d.appendChild(document.createTextNode(str));
+  return d.innerHTML;
 }
 
-function showToast(message, type = '') {
-  const existing = document.querySelector('.toast');
-  if (existing) existing.remove();
-
-  const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  toast.textContent = message;
-  document.body.appendChild(toast);
-
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => { toast.classList.add('show'); });
-  });
-
-  setTimeout(() => {
-    toast.classList.remove('show');
-    setTimeout(() => toast.remove(), 400);
-  }, 3000);
+function showToast(msg, type = '') {
+  document.querySelector('.toast')?.remove();
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('show')));
+  setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 400); }, 3000);
 }
 
 function closeAllModals() {
@@ -999,561 +785,66 @@ function closeAllModals() {
 }
 
 // ====================================================
-// SCROLL REVEAL ANIMATION
+// SCROLL REVEAL
 // ====================================================
-
 let scrollObserver = null;
 
 function initScrollReveal() {
-  scrollObserver = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry, i) => {
-        if (entry.isIntersecting) {
-          setTimeout(() => { entry.target.classList.add('visible'); }, i * 100);
-          scrollObserver.unobserve(entry.target);
-        }
-      });
-    },
-    { threshold: 0.1, rootMargin: '0px 0px -40px 0px' }
-  );
+  scrollObserver = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => entry.target.classList.add('visible'), i * 100);
+        scrollObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
 }
 
 function observeScrollReveal(el) {
-  if (scrollObserver && el) scrollObserver.observe(el);
+  scrollObserver?.observe(el);
 }
 
 function observeStaticElements() {
-  const elements = document.querySelectorAll(
-    '.section-header, .counter-card, .counter-quote, .counter-separator'
-  );
-  elements.forEach(el => {
+  document.querySelectorAll('.section-header, .counter-card, .counter-quote, .counter-separator').forEach(el => {
     el.classList.add('scroll-reveal');
     observeScrollReveal(el);
   });
 }
 
 // ====================================================
-// KHỞI TẠO ỨNG DỤNG
+// KEYBOARD NAVIGATION
 // ====================================================
-
-async function init() {
-  console.log('💕 Ký Ức Của Chúng Mình - Đang khởi động...');
-
-  // 1. Tải kỷ niệm từ Supabase
-  showToast('⏳ Đang tải kỷ niệm...', '');
-  AppState.memories = await StorageAdapter.getMemories();
-
-  // 2. Khởi tạo video nền
-  await initBackgroundVideo();
-
-  // 2b. Tải ảnh khung tròn
-  await loadCounterPhoto();
-
-  // 3. Khởi tạo navbar
-  initNavbar();
-
-  // 4. Khởi tạo bộ đếm
-  initLoveCounter();
-
-  // 5. Scroll reveal
-  initScrollReveal();
-
-  // 6. Render timeline
-  renderTimeline();
-
-  // 7. Observe static elements
-  observeStaticElements();
-
-  // 8. Event listeners
-  bindEventListeners();
-
-  console.log(`💕 Đã tải ${AppState.memories.length} kỷ niệm từ Supabase!`);
-}
-
-function bindEventListeners() {
-  const openAdminBtn = document.getElementById('openAdminBtn');
-  if (openAdminBtn) openAdminBtn.addEventListener('click', openAdminPanel);
-
-  const openAddMemoryBtn = document.getElementById('openAddMemoryBtn');
-  if (openAddMemoryBtn) openAddMemoryBtn.addEventListener('click', openAddMemoryModal);
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      closeLightbox();
-      closeMemoryModal();
-      closeAdminPanel();
-    }
-  });
-}
-
-// ====================================================
-// CHẠY KHI DOM SẴN SÀNG
-// ====================================================
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
-// ============================================================
-// MULTI-MEDIA MODULE — Nhiều ảnh/video trong 1 kỷ niệm
-// Hoàn toàn độc lập, không thay đổi code cũ
-// ============================================================
-
-// ── State cho multi-upload ──
-const MultiMediaState = {
-  files: [],        // [{file, blobUrl, type}] — files đang chờ upload
-  existing: [],     // [{id, media_url, media_type, position}] — media đã lưu (khi edit)
-  lightboxItems: [], // [{url, type}] — dùng cho lightbox slideshow
-  lightboxIndex: 0,
-};
-
-// ── Supabase: đọc/ghi bảng memory_media ──
-const MediaAdapter = {
-  _headers() {
-    return {
-      'Content-Type': 'application/json',
-      'apikey': SUPABASE_KEY,
-      'Authorization': `Bearer ${SUPABASE_KEY}`,
-    };
-  },
-
-  // Lấy tất cả media của 1 kỷ niệm, sắp xếp theo position
-  async getByMemoryId(memoryId) {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/memory_media?memory_id=eq.${memoryId}&order=position.asc`,
-      { headers: this._headers() }
-    );
-    if (!res.ok) return [];
-    return res.json();
-  },
-
-  // Thêm nhiều media cho 1 kỷ niệm
-  async insertMany(memoryId, items) {
-    if (!items.length) return;
-    const records = items.map((item, i) => ({
-      memory_id: memoryId,
-      media_url: item.url,
-      media_type: item.type,
-      position: i,
-    }));
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/memory_media`,
-      {
-        method: 'POST',
-        headers: { ...this._headers(), 'Prefer': 'return=minimal' },
-        body: JSON.stringify(records),
-      }
-    );
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.message || `Insert media thất bại: ${res.status}`);
-    }
-  },
-
-  // Xóa 1 media theo id
-  async deleteById(id) {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/memory_media?id=eq.${id}`,
-      { method: 'DELETE', headers: this._headers() }
-    );
-    if (!res.ok) throw new Error(`Xóa media thất bại: ${res.status}`);
-  },
-
-  // Xóa toàn bộ media của 1 kỷ niệm
-  async deleteByMemoryId(memoryId) {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/memory_media?memory_id=eq.${memoryId}`,
-      { method: 'DELETE', headers: this._headers() }
-    );
-    if (!res.ok) throw new Error(`Xóa tất cả media thất bại: ${res.status}`);
-  },
-};
-
-// ── Inject UI multi-upload vào form hiện có ──
-function injectMultiUploadUI() {
-  // Không inject 2 lần
-  if (document.getElementById('multiUploadSection')) return;
-
-  // Tìm form-group chứa "Ảnh hay video" để thêm section bên dưới
-  const memoryModalBody = document.querySelector('.memory-modal-body');
-  if (!memoryModalBody) return;
-
-  const section = document.createElement('div');
-  section.id = 'multiUploadSection';
-  section.className = 'form-group';
-  section.innerHTML = `
-    <label class="form-label">
-      📎 Thêm nhiều ảnh/video
-      <span style="font-size:11px;font-weight:400;opacity:0.6;margin-left:6px;">(tuỳ chọn)</span>
-    </label>
-
-    <label class="multi-upload-btn" for="multiMediaInput">
-      <span>+ Chọn ảnh/video</span>
-      <input type="file" id="multiMediaInput" accept="image/*,video/*" multiple hidden
-             onchange="handleMultiFileSelect(this)" />
-    </label>
-
-    <div id="multiPreviewGrid" class="multi-preview-grid"></div>
-  `;
-
-  // Chèn sau form-group đầu tiên (chọn loại media)
-  const firstGroup = memoryModalBody.querySelector('.form-group');
-  if (firstGroup && firstGroup.nextSibling) {
-    memoryModalBody.insertBefore(section, firstGroup.nextSibling);
-  } else {
-    memoryModalBody.appendChild(section);
-  }
-}
-
-// ── Xử lý chọn nhiều file ──
-function handleMultiFileSelect(input) {
-  const files = Array.from(input.files);
-  if (!files.length) return;
-
-  files.forEach(file => {
-    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) return;
-    const blobUrl = URL.createObjectURL(file);
-    const type = file.type.startsWith('video/') ? 'video' : 'image';
-    MultiMediaState.files.push({ file, blobUrl, type });
-  });
-
-  renderMultiPreviewGrid();
-  input.value = ''; // Reset để có thể chọn lại file cũ
-  showToast(`✓ Đã chọn ${files.length} file`, 'success');
-}
-
-// ── Render grid preview ──
-function renderMultiPreviewGrid() {
-  const grid = document.getElementById('multiPreviewGrid');
-  if (!grid) return;
-
-  // Gộp existing (đã lưu) + files mới
-  const existingHtml = MultiMediaState.existing.map((item, i) => `
-    <div class="multi-preview-item" data-existing-index="${i}">
-      ${item.media_type === 'video'
-        ? `<video src="${item.media_url}" class="multi-thumb"></video>`
-        : `<img src="${item.media_url}" class="multi-thumb" loading="lazy" />`}
-      <div class="multi-thumb-badge">${item.media_type === 'video' ? '🎬' : '📷'}</div>
-      <button class="multi-remove-btn" onclick="removeExistingMedia(${i})" title="Xóa">✕</button>
-    </div>
-  `).join('');
-
-  const newHtml = MultiMediaState.files.map((item, i) => `
-    <div class="multi-preview-item" data-new-index="${i}">
-      ${item.type === 'video'
-        ? `<video src="${item.blobUrl}" class="multi-thumb"></video>`
-        : `<img src="${item.blobUrl}" class="multi-thumb" loading="lazy" />`}
-      <div class="multi-thumb-badge">${item.type === 'video' ? '🎬' : '📷'} Mới</div>
-      <button class="multi-remove-btn" onclick="removeNewMedia(${i})" title="Xóa">✕</button>
-    </div>
-  `).join('');
-
-  const total = MultiMediaState.existing.length + MultiMediaState.files.length;
-  grid.innerHTML = existingHtml + newHtml;
-
-  if (total > 0) {
-    grid.style.display = 'grid';
-  } else {
-    grid.style.display = 'none';
-  }
-}
-
-function removeExistingMedia(index) {
-  MultiMediaState.existing.splice(index, 1);
-  renderMultiPreviewGrid();
-}
-
-function removeNewMedia(index) {
-  URL.revokeObjectURL(MultiMediaState.files[index].blobUrl);
-  MultiMediaState.files.splice(index, 1);
-  renderMultiPreviewGrid();
-}
-
-function resetMultiMedia() {
-  MultiMediaState.files.forEach(f => URL.revokeObjectURL(f.blobUrl));
-  MultiMediaState.files = [];
-  MultiMediaState.existing = [];
-  const grid = document.getElementById('multiPreviewGrid');
-  if (grid) { grid.innerHTML = ''; grid.style.display = 'none'; }
-}
-
-// ── Upload tất cả file mới lên Cloudinary ──
-async function uploadAllMultiMedia() {
-  const results = [];
-  for (let i = 0; i < MultiMediaState.files.length; i++) {
-    const item = MultiMediaState.files[i];
-    showToast(`⏳ Đang upload file ${i + 1}/${MultiMediaState.files.length}...`, '');
-    const uploaded = await CloudinaryAdapter.upload(item.file);
-    results.push({ url: uploaded.secure_url, type: item.type });
-  }
-  return results;
-}
-
-// ── Hook vào saveMemory: sau khi lưu xong, upload multi-media ──
-const _originalSaveMemory = saveMemory;
-window.saveMemory = async function() {
-  // Gọi saveMemory gốc — nó sẽ insert vào bảng memories và gọi loadMemoriesFromSupabase
-  // Nhưng ta cần lấy id của row vừa tạo → override loadMemoriesFromSupabase tạm thời
-
-  const hasMultiMedia = MultiMediaState.files.length > 0 || MultiMediaState.existing.length > 0;
-
-  if (!hasMultiMedia) {
-    // Không có multi-media → chạy bình thường
-    await _originalSaveMemory();
-    resetMultiMedia();
-    return;
-  }
-
-  // Có multi-media → cần biết memory_id sau khi insert
-  const title = document.getElementById('memoryTitle').value.trim();
-  const date  = document.getElementById('memoryDate').value;
-  const description = document.getElementById('memoryDescription').value.trim();
-
-  if (!title) {
-    showToast('⚠️ Vui lòng nhập tiêu đề!', 'error');
-    document.getElementById('memoryTitle').focus();
-    return;
-  }
-  if (!date) {
-    showToast('⚠️ Vui lòng chọn ngày!', 'error');
-    return;
-  }
-
-  const saveBtn = document.querySelector('.memory-modal-footer .btn-primary');
-  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = '⏳ Đang lưu...'; }
-
-  try {
-    // 1. Upload media chính (nếu có)
-    let mediaUrl  = AppState.currentMediaData;
-    let mediaType = AppState.currentMediaType;
-    if (AppState.currentMediaFile) {
-      showToast('⏳ Đang tải ảnh chính...', '');
-      const up = await uploadToCloudinary(AppState.currentMediaFile);
-      mediaUrl = up.secure_url;
-      mediaType = up.media_type;
-    }
-
-    let memorySupabaseId;
-
-    if (AppState.editingId && AppState.editingSupabaseId) {
-      // UPDATE
-      const updates = { title, date, description, media_type: mediaType };
-      if (AppState.currentMediaFile) updates.media_url = mediaUrl;
-      await SupabaseAdapter.update(AppState.editingSupabaseId, updates);
-      memorySupabaseId = AppState.editingSupabaseId;
-
-      // Xóa existing media đã bị remove
-      const currentIds = MultiMediaState.existing.map(e => e.id);
-      const allOld = await MediaAdapter.getByMemoryId(memorySupabaseId);
-      for (const old of allOld) {
-        if (!currentIds.includes(old.id)) {
-          await MediaAdapter.deleteById(old.id);
-        }
-      }
-      showToast('✓ Đã cập nhật kỷ niệm!', 'success');
-    } else {
-      // INSERT
-      showToast('⏳ Đang lưu kỷ niệm...', '');
-      const row = await saveMemoryToSupabase({
-        title, date, description,
-        media_url: mediaUrl || '',
-        media_type: mediaType,
-      });
-      memorySupabaseId = row.id;
-      showToast('✓ Đã thêm kỷ niệm!', 'success');
-    }
-
-    // 2. Upload và lưu multi-media
-    if (MultiMediaState.files.length > 0) {
-      const uploaded = await uploadAllMultiMedia();
-      await MediaAdapter.insertMany(memorySupabaseId, uploaded);
-    }
-
-    // 3. Reload và đóng
-    await loadMemoriesFromSupabase();
+document.addEventListener('keydown', e => {
+  if (document.getElementById('lightbox').classList.contains('active')) {
+    if (e.key === 'ArrowLeft')  slideBy(-1);
+    if (e.key === 'ArrowRight') slideBy(1);
+    if (e.key === 'Escape')     closeLightbox();
+  } else if (e.key === 'Escape') {
     closeMemoryModal();
-    resetMultiMedia();
-
-  } catch(e) {
-    console.error('Lỗi lưu multi-media:', e);
-    showToast(`⚠️ Lỗi: ${e.message}`, 'error');
-  } finally {
-    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = '💾 Lưu'; }
+    closeAdminPanel();
   }
-};
-
-// ── Hook vào openAddMemoryModal để inject UI + reset state ──
-const _origOpenAdd = openAddMemoryModal;
-window.openAddMemoryModal = function() {
-  _origOpenAdd();
-  resetMultiMedia();
-  injectMultiUploadUI();
-};
-
-// ── Hook vào openEditMemoryModal để load existing media ──
-const _origOpenEdit = openEditMemoryModal;
-window.openEditMemoryModal = async function(id) {
-  _origOpenEdit(id);
-  resetMultiMedia();
-  injectMultiUploadUI();
-
-  // Load media phụ từ Supabase
-  const memory = AppState.memories.find(m => m.id === id);
-  if (memory) {
-    try {
-      const items = await MediaAdapter.getByMemoryId(memory.supabaseId);
-      MultiMediaState.existing = items;
-      renderMultiPreviewGrid();
-    } catch(e) {
-      console.warn('Không tải được media phụ:', e);
-    }
-  }
-};
-
-// ── Hook vào closeMemoryModal để reset state ──
-const _origCloseModal = closeMemoryModal;
-window.closeMemoryModal = function() {
-  _origCloseModal();
-  resetMultiMedia();
-};
-
-// ── Lightbox slideshow: override openLightbox để hiển thị nhiều ảnh ──
-const _origOpenLightbox = openLightbox;
-window.openLightbox = async function(id) {
-  const memory = AppState.memories.find(m => m.id === id);
-  if (!memory) return;
-
-  // Tải media phụ
-  let extraItems = [];
-  try {
-    const rows = await MediaAdapter.getByMemoryId(memory.supabaseId);
-    extraItems = rows.map(r => ({ url: r.media_url, type: r.media_type }));
-  } catch(e) {}
-
-  // Gộp: ảnh chính + media phụ
-  MultiMediaState.lightboxItems = [];
-  if (memory.mediaData) {
-    MultiMediaState.lightboxItems.push({ url: memory.mediaData, type: memory.mediaType });
-  }
-  extraItems.forEach(e => MultiMediaState.lightboxItems.push(e));
-
-  if (MultiMediaState.lightboxItems.length <= 1) {
-    // Chỉ có 1 ảnh → dùng lightbox gốc
-    _origOpenLightbox(id);
-    return;
-  }
-
-  // Nhiều ảnh → mở lightbox slideshow
-  MultiMediaState.lightboxIndex = 0;
-  openLightboxSlideshow(memory);
-};
-
-function openLightboxSlideshow(memory) {
-  const lightbox = document.getElementById('lightbox');
-  const mediaContainer = document.getElementById('lightboxMedia');
-
-  renderLightboxSlide();
-
-  // Thêm nút điều hướng nếu chưa có
-  if (!document.getElementById('lbPrev')) {
-    const prev = document.createElement('button');
-    prev.id = 'lbPrev';
-    prev.className = 'lb-nav-btn lb-prev';
-    prev.innerHTML = '❮';
-    prev.onclick = (e) => { e.stopPropagation(); slideLightbox(-1); };
-
-    const next = document.createElement('button');
-    next.id = 'lbNext';
-    next.className = 'lb-nav-btn lb-next';
-    next.innerHTML = '❯';
-    next.onclick = (e) => { e.stopPropagation(); slideLightbox(1); };
-
-    const counter = document.createElement('div');
-    counter.id = 'lbCounter';
-    counter.className = 'lb-counter';
-
-    const content = lightbox.querySelector('.lightbox-content');
-    if (content) {
-      content.appendChild(prev);
-      content.appendChild(next);
-      content.appendChild(counter);
-    }
-  }
-
-  updateLightboxNav();
-
-  document.getElementById('lightboxTitle').textContent = memory.title;
-  document.getElementById('lightboxDate').textContent = formatDate(memory.date);
-  document.getElementById('lightboxDesc').textContent = memory.description || '';
-
-  lightbox.classList.add('active');
-  document.body.style.overflow = 'hidden';
-}
-
-function renderLightboxSlide() {
-  const item = MultiMediaState.lightboxItems[MultiMediaState.lightboxIndex];
-  if (!item) return;
-
-  const mediaContainer = document.getElementById('lightboxMedia');
-  const video = mediaContainer.querySelector('video');
-  if (video) video.pause();
-
-  if (item.type === 'video') {
-    mediaContainer.innerHTML = `<video src="${item.url}" controls style="width:100%;max-height:60vh;object-fit:contain;"></video>`;
-  } else {
-    mediaContainer.innerHTML = `<img src="${item.url}" style="width:100%;max-height:60vh;object-fit:contain;" />`;
-  }
-}
-
-function slideLightbox(dir) {
-  const total = MultiMediaState.lightboxItems.length;
-  MultiMediaState.lightboxIndex = (MultiMediaState.lightboxIndex + dir + total) % total;
-  renderLightboxSlide();
-  updateLightboxNav();
-}
-
-function updateLightboxNav() {
-  const total = MultiMediaState.lightboxItems.length;
-  const idx = MultiMediaState.lightboxIndex;
-
-  const counter = document.getElementById('lbCounter');
-  if (counter) counter.textContent = `${idx + 1} / ${total}`;
-
-  const prev = document.getElementById('lbPrev');
-  const next = document.getElementById('lbNext');
-  if (prev) prev.style.display = total > 1 ? 'flex' : 'none';
-  if (next) next.style.display = total > 1 ? 'flex' : 'none';
-}
-
-// Keyboard điều hướng lightbox
-document.addEventListener('keydown', (e) => {
-  const lightbox = document.getElementById('lightbox');
-  if (!lightbox.classList.contains('active')) return;
-  if (e.key === 'ArrowLeft')  slideLightbox(-1);
-  if (e.key === 'ArrowRight') slideLightbox(1);
 });
 
-// Timeline: hiển thị số lượng media phụ trên card
-const _origCreateTimelineItem = createTimelineItem;
-window.createTimelineItem = function(memory, index) {
-  const item = _origCreateTimelineItem(memory, index);
-  // Badge số ảnh sẽ được cập nhật sau khi load
-  loadMediaCountBadge(memory, item);
-  return item;
-};
+// ====================================================
+// KHỞI TẠO
+// ====================================================
+async function init() {
+  console.log('💕 Ký Ức Của Chúng Mình - Đang khởi động...');
+  showToast('⏳ Đang tải...', '');
+  await initBackgroundVideo();
+  await loadCounterPhoto();
+  initNavbar();
+  initLoveCounter();
+  initScrollReveal();
+  await loadMemoriesFromSupabase();
+  observeStaticElements();
 
-async function loadMediaCountBadge(memory, item) {
-  try {
-    const rows = await MediaAdapter.getByMemoryId(memory.supabaseId);
-    if (rows.length === 0) return;
+  document.getElementById('openAdminBtn')?.addEventListener('click', openAdminPanel);
+  document.getElementById('openAddMemoryBtn')?.addEventListener('click', openAddMemoryModal);
 
-    const badge = item.querySelector('.media-badge');
-    if (badge) {
-      const total = 1 + rows.length; // ảnh chính + media phụ
-      badge.textContent = badge.textContent + ` · ${total} ảnh`;
-    }
-  } catch(e) {}
+  console.log(`💕 Sẵn sàng! Đã tải ${AppState.memories.length} kỷ niệm.`);
 }
 
-console.log('✓ Multi-media module đã sẵn sàng!');
+document.readyState === 'loading'
+  ? document.addEventListener('DOMContentLoaded', init)
+  : init();
