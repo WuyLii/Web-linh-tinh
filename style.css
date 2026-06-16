@@ -2221,27 +2221,6 @@ body {
   box-shadow: 0 0 0 9px rgba(42,127,212,0.2), var(--jn-glow);
 }
 
-/* Connector line từ pin đến card (ngang) */
-.jn-stop-connector {
-  position: absolute;
-  top: 46px;
-  height: 2px;
-  background: linear-gradient(90deg, var(--jn-blue-soft), rgba(42,127,212,0.3));
-  z-index: 1;
-}
-/* Card bên phải — connector từ trung tâm sang phải */
-.jn-stop:nth-child(odd)  .jn-stop-connector {
-  left: 50%; right: calc(50% - 36px);
-  width: calc(50% - 36px);
-  background: linear-gradient(90deg, rgba(42,127,212,0.3), var(--jn-blue-soft));
-}
-/* Card bên trái — connector từ trái sang trung tâm */
-.jn-stop:nth-child(even) .jn-stop-connector {
-  right: 50%; left: calc(50% - 36px);
-  width: calc(50% - 36px);
-  background: linear-gradient(90deg, var(--jn-blue-soft), rgba(42,127,212,0.3));
-}
-
 /* ── Journey card ── */
 .jn-card {
   background: var(--jn-glass);
@@ -2269,17 +2248,6 @@ body {
 .jn-stop:nth-child(even) .jn-stop-pin { grid-column: 2; }
 .jn-stop:nth-child(even) .jn-stop-spacer { grid-column: 3; }
 
-/* Connector alignment theo chiều */
-.jn-stop:nth-child(odd) .jn-stop-connector {
-  left: 50%; width: calc(50% - 36px);
-  background: linear-gradient(90deg, rgba(42,127,212,0.4), var(--jn-blue-soft));
-}
-.jn-stop:nth-child(even) .jn-stop-connector {
-  right: 50%; left: auto;
-  width: calc(50% - 36px);
-  right: 50%; left: calc(0% + 36px);
-  background: linear-gradient(90deg, var(--jn-blue-soft), rgba(42,127,212,0.4));
-}
 
 .jn-card-media {
   position: relative;
@@ -2553,7 +2521,6 @@ body {
   }
   .jn-stop-pin-inner { width: 36px; height: 36px; font-size: 0.85rem; }
   .jn-stop-spacer { display: none; }
-  .jn-stop-connector { display: none; }
   .jn-card { width: 100%; }
 
   /* Catalog: 1 cột dọc */
