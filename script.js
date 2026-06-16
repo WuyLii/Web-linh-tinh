@@ -579,7 +579,7 @@ function openAddMemoryModal() {
   document.getElementById('memoryModalTitle').textContent = '✦ Thêm Kỷ Niệm Mới';
   document.getElementById('editMemoryId').value = '';
   document.getElementById('memoryTitle').value = '';
-  document.getElementById('memoryDate').value = getTodayVN();
+  document.getElementById('memoryDate').value = getTodayVN(); // dd/mm/yyyy
   document.getElementById('memoryDescription').value = '';
   document.getElementById('memoryModal').classList.add('active');
   document.getElementById('modalOverlay').classList.add('active');
@@ -597,7 +597,7 @@ async function openEditMemoryModal(id) {
   document.getElementById('memoryModalTitle').textContent = '✦ Chỉnh Sửa Kỷ Niệm';
   document.getElementById('editMemoryId').value = id;
   document.getElementById('memoryTitle').value = memory.title;
-  document.getElementById('memoryDate').value = memory.date;
+  document.getElementById('memoryDate').value = isoToDisplay(memory.date); // dd/mm/yyyy
   document.getElementById('memoryDescription').value = memory.description || '';
 
   // Load media hiện có (ảnh chính + phụ)
@@ -656,12 +656,14 @@ async function compressImage(file, maxSizeMB = 9) {
 // LƯU KỶ NIỆM
 // ====================================================
 async function saveMemory() {
-  const title       = document.getElementById('memoryTitle').value.trim();
-  const date        = document.getElementById('memoryDate').value;
-  const description = document.getElementById('memoryDescription').value.trim();
+  const title          = document.getElementById('memoryTitle').value.trim();
+  const dateDisplay    = document.getElementById('memoryDate').value.trim();
+  const description    = document.getElementById('memoryDescription').value.trim();
 
   if (!title) { showToast('⚠️ Vui lòng nhập tiêu đề!', 'error'); document.getElementById('memoryTitle').focus(); return; }
-  if (!date)  { showToast('⚠️ Vui lòng chọn ngày!', 'error'); return; }
+  if (!dateDisplay) { showToast('⚠️ Vui lòng nhập ngày (dd/mm/yyyy)!', 'error'); return; }
+  if (!isValidDisplayDate(dateDisplay)) { showToast('⚠️ Ngày không đúng định dạng dd/mm/yyyy!', 'error'); document.getElementById('memoryDate').focus(); return; }
+  const date = displayToIso(dateDisplay);
   if (!AppState.pendingFiles.length && !AppState.existingMedia.length && !AppState.editingId) {
     showToast('⚠️ Vui lòng chọn ít nhất 1 ảnh hoặc video!', 'error'); return;
   }
@@ -769,8 +771,31 @@ function formatDate(d) {
   } catch(e) { return d; }
 }
 
+// Chuyển yyyy-mm-dd → dd/mm/yyyy (để hiển thị trong input)
+function isoToDisplay(iso) {
+  if (!iso) return '';
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return iso;
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+// Chuyển dd/mm/yyyy → yyyy-mm-dd (để lưu vào Supabase)
+function displayToIso(display) {
+  if (!display) return '';
+  const m = display.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return display;
+  return `${m[3]}-${m[2]}-${m[1]}`;
+}
+
+// Kiểm tra định dạng dd/mm/yyyy có hợp lệ không
+function isValidDisplayDate(val) {
+  return /^\d{2}\/\d{2}\/\d{4}$/.test(val);
+}
+
+// Trả về ngày hôm nay theo giờ VN, định dạng dd/mm/yyyy
 function getTodayVN() {
-  return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+  const iso = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
+  return isoToDisplay(iso);
 }
 
 function escapeHtml(str) {
@@ -839,6 +864,40 @@ document.addEventListener('keydown', e => {
 });
 
 // ====================================================
+// AUTO-FORMAT INPUT NGÀY THÁNG (dd/mm/yyyy)
+// ====================================================
+function initDateInput() {
+  const input = document.getElementById('memoryDate');
+  if (!input) return;
+
+  input.addEventListener('input', function (e) {
+    let val = this.value.replace(/\D/g, ''); // chỉ giữ số
+    if (val.length > 8) val = val.slice(0, 8);
+
+    let formatted = '';
+    if (val.length <= 2) {
+      formatted = val;
+    } else if (val.length <= 4) {
+      formatted = val.slice(0, 2) + '/' + val.slice(2);
+    } else {
+      formatted = val.slice(0, 2) + '/' + val.slice(2, 4) + '/' + val.slice(4);
+    }
+    this.value = formatted;
+  });
+
+  // Cho phép xóa dấu / tự nhiên (backspace)
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Backspace') {
+      const val = this.value;
+      if (val.endsWith('/')) {
+        e.preventDefault();
+        this.value = val.slice(0, -1);
+      }
+    }
+  });
+}
+
+// ====================================================
 // KHỞI TẠO
 // ====================================================
 async function init() {
@@ -854,6 +913,7 @@ async function init() {
 
   document.getElementById('openAdminBtn')?.addEventListener('click', openAdminPanel);
   document.getElementById('openAddMemoryBtn')?.addEventListener('click', openAddMemoryModal);
+  initDateInput();
 
   console.log(`💕 Sẵn sàng! Đã tải ${AppState.memories.length} kỷ niệm.`);
 }
