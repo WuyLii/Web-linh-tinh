@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ký Ức Của Huy và Vy 💕</title>
+  <title>Bảo Vy & Quốc Huy 💕</title>
 
   <!-- Favicon hoa anh đào 🌸 -->
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌸</text></svg>" />
@@ -30,9 +30,15 @@
        ==================================================== -->
   <div id="memoryGate" class="memory-gate">
     <!-- Video nền (dùng chung với video chính) -->
-    <video class="gate-video-bg" autoplay loop muted playsinline preload="auto">
-      <source src="assets/nen(test).mp4" type="video/mp4" />
-    </video>
+
+    <!--===================== NỀN KHOÁ LÀ VIDEO ==================================-->
+    <video class="gate-video-bg" autoplay loop muted playsinline>
+  <source src="https://res.cloudinary.com/dmq9orepw/video/upload/v1781687624/0614_irhily.mp4" type="video/mp4" />
+</video>
+
+    <!-- =============================== NỀN KHOÁ LÀ ẢNH ================================-->
+    <!-- <img class="gate-video-bg" src="https://res.cloudinary.com/dmq9orepw/image/upload/v1781687151/IMG_0937_vh4jdl.png" /> -->
+    
     <!-- Overlay mờ lên video -->
     <div class="gate-video-overlay"></div>
 
@@ -49,16 +55,16 @@
       </div>
 
       <!-- Nhãn nhỏ -->
-      <span class="gate-eyebrow">✦ Cánh Cổng Ký Ức ✦</span>
+      <span class="gate-eyebrow">✦ Cảnh cửa thần kỳ ✦</span>
 
       <!-- Tiêu đề -->
-      <h1 class="gate-title">Những Ký Ức<br /><em>Của Chúng Ta</em></h1>
+      <h1 class="gate-title">Hành trình<br /><em>Bill & Huy</em></h1>
 
       <!-- Mô tả -->
       <p class="gate-description">
-        Mỗi hành trình đều có một cánh cửa riêng —<br />
-        chỉ những ai mang theo đúng chiếc chìa khóa<br />
-        mới có thể bước vào thế giới ký ức đó.
+       Khi cánh cổng này đóng lại<br />
+        thì sẽ có một cái chìa khoá để mở ra<br />
+        hãy dùng nó để mở ra câu truyện của bên trong ♡
       </p>
 
       <!-- Ô nhập mật mã -->
@@ -68,7 +74,7 @@
           type="password"
           id="gatePasswordInput"
           class="gate-input"
-          placeholder="Nhập mật mã của chúng mình..."
+          placeholder="Hãy nhập mật khẩu giấu kín..."
           autocomplete="off"
           onkeydown="if(event.key==='Enter') unlockGate()"
         />
@@ -90,7 +96,7 @@
       </button>
 
       <!-- Gợi ý nhỏ -->
-      <p class="gate-hint">Một nơi chỉ dành riêng cho hai người ♡</p>
+      <p class="gate-hint">Đây là web cá nhân của Vy và Huy ♡</p>
     </div>
   </div>
 
@@ -183,7 +189,7 @@
 
       <!-- Nút CTA glassmorphism -->
       <button class="hero-cta fade-rise delay-4" onclick="smoothScroll('#timeline')">
-        <span>Xem Hành Trình</span>
+        <span>Xem Kỹ Niệm</span>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -285,10 +291,10 @@
     <div class="section-inner">
       <!-- Tiêu đề section -->
       <div class="section-header">
-        <span class="section-eyebrow">✦ Huy & Vy phiêu lưu kí</span>
-        <h2 class="section-title">Hành Trình yêu nhau</h2>
+        <span class="section-eyebrow">✦ Kỹ niệm Huy & Vy ✦</span>
+        <h2 class="section-title">Kỹ niệm và lộ trình</h2>
         <p class="section-subtitle">
-          Hành trình đi thỉnh kinh của Bill và Wuy
+          Hành trình yêu của Bill và Wuy
         </p>
       </div>
 
@@ -319,15 +325,15 @@
   <section class="photobooth-section" id="photobooth">
     <div class="section-inner">
       <div class="section-header">
-        <span class="section-eyebrow pb-eyebrow">🎯 Hành trình chinh phục</span>
+        <span class="section-eyebrow pb-eyebrow">🎯 Quyết tâm chinh phục phô tô bút</span>
         <h2 class="section-title pb-title">Chinh Phục Phô Tô Bút</h2>
         <p class="section-subtitle pb-subtitle">
-          Từng cột mốc nhỏ — từng chiến thắng lớn của Huy &amp; Vy
+          Không tha cho bất kỳ cái photobooth đẹp nào
         </p>
       </div>
       <div class="pb-actions">
         <button class="pb-add-btn" id="openAddPhotoboothBtn">
-          <span>+ Thêm Cột Mốc</span>
+          <span>+ Thêm photobooth</span>
         </button>
       </div>
       <div class="pb-grid" id="pbGrid">
@@ -335,7 +341,7 @@
           <div class="empty-icon">🎯</div>
           <p>Chưa có cột mốc nào.<br />Hãy ghi lại thành tích đầu tiên! ✦</p>
           <button class="pb-add-btn-empty" onclick="openAddPhotoboothModal()">
-            + Thêm Cột Mốc Đầu Tiên
+            + Thêm thành tích dầu tiên
           </button>
         </div>
       </div>
@@ -348,10 +354,10 @@
   <section class="journey-section" id="journey">
     <div class="section-inner">
       <div class="section-header">
-        <span class="section-eyebrow jn-eyebrow">🗺️ Bản đồ hành trình</span>
-        <h2 class="section-title jn-title">Hành Trình Xuyên Việt</h2>
+        <span class="section-eyebrow jn-eyebrow">🗺️ Hành trình đi thỉnh kinh</span>
+        <h2 class="section-title jn-title">Huy & Vy phiêu lưu kí</h2>
         <p class="section-subtitle jn-subtitle">
-          Những địa điểm Huy &amp; Vy đã cùng nhau đặt chân đến
+          Những địa điểm Huy & Vy đã cùng nhau đặt chân đến
         </p>
       </div>
       <div class="jn-actions">
@@ -376,7 +382,7 @@
        ==================================================== -->
   <div class="pb-modal" id="pbModal">
     <div class="pb-modal-header">
-      <h3 id="pbModalTitle">🎯 Thêm Cột Mốc Mới</h3>
+      <h3 id="pbModalTitle">🎯 Thêm photobooth</h3>
       <button class="modal-close" onclick="closePbModal()">✕</button>
     </div>
     <div class="pb-modal-body">
@@ -395,8 +401,8 @@
         <div id="pbMediaPreviewGrid" class="media-preview-grid" style="display:none;"></div>
       </div>
       <div class="form-group">
-        <label class="form-label" for="pbTitle">Tên Cột Mốc</label>
-        <input type="text" id="pbTitle" class="form-input" placeholder="Ví dụ: Lần đầu chụp cùng nhau..." />
+        <label class="form-label" for="pbTitle">Tên photobooth</label>
+        <input type="text" id="pbTitle" class="form-input" placeholder="Ví dụ: Chụp cùng nhau ở đâu..." />
       </div>
       <div class="form-group">
         <label class="form-label" for="pbDate">Ngày</label>
@@ -404,7 +410,7 @@
       </div>
       <div class="form-group">
         <label class="form-label" for="pbDescription">Mô Tả</label>
-        <textarea id="pbDescription" class="form-textarea" placeholder="Kể về cột mốc này..." rows="3"></textarea>
+        <textarea id="pbDescription" class="form-textarea" placeholder="Kể về ngày hôm đó ntn rồi lại đây chụp ntn..." rows="3"></textarea>
       </div>
     </div>
     <div class="pb-modal-footer">
@@ -449,7 +455,7 @@
         <input type="text" id="jnDate" class="form-input" placeholder="dd/mm/yyyy" maxlength="10" inputmode="numeric" autocomplete="off" />
       </div>
       <div class="form-group">
-        <label class="form-label" for="jnDescription">Mô Tả Hành Trình</label>
+        <label class="form-label" for="jnDescription">Mô Tả chuyến đi thỉnh kinh</label>
         <textarea id="jnDescription" class="form-textarea" placeholder="Kể về chuyến đi này..." rows="3"></textarea>
       </div>
     </div>
