@@ -26,6 +26,78 @@
 <body>
 
   <!-- ====================================================
+       CÁNH CỔNG KÝ ỨC - GATE SCREEN
+       ==================================================== -->
+  <div id="memoryGate" class="memory-gate">
+    <!-- Video nền (dùng chung với video chính) -->
+    <video class="gate-video-bg" autoplay loop muted playsinline preload="auto">
+      <source src="assets/nen(test).mp4" type="video/mp4" />
+    </video>
+    <!-- Overlay mờ lên video -->
+    <div class="gate-video-overlay"></div>
+
+    <!-- Hạt sáng lấp lánh nền -->
+    <div class="gate-particles" id="gateParticles"></div>
+    <!-- Nội dung trung tâm -->
+    <div class="gate-content">
+      <!-- Biểu tượng cánh cửa -->
+      <div class="gate-door-icon">
+        <div class="gate-door-left"></div>
+        <div class="gate-door-right"></div>
+        <div class="gate-door-glow"></div>
+        <span class="gate-door-symbol">🌸</span>
+      </div>
+
+      <!-- Nhãn nhỏ -->
+      <span class="gate-eyebrow">✦ Cánh Cổng Ký Ức ✦</span>
+
+      <!-- Tiêu đề -->
+      <h1 class="gate-title">Những Ký Ức<br /><em>Của Chúng Ta</em></h1>
+
+      <!-- Mô tả -->
+      <p class="gate-description">
+        Mỗi hành trình đều có một cánh cửa riêng —<br />
+        chỉ những ai mang theo đúng chiếc chìa khóa<br />
+        mới có thể bước vào thế giới ký ức đó.
+      </p>
+
+      <!-- Ô nhập mật mã -->
+      <div class="gate-input-wrap">
+        <div class="gate-input-icon">🗝️</div>
+        <input
+          type="password"
+          id="gatePasswordInput"
+          class="gate-input"
+          placeholder="Nhập mật mã của chúng mình..."
+          autocomplete="off"
+          onkeydown="if(event.key==='Enter') unlockGate()"
+        />
+        <button class="gate-toggle-pw" onclick="toggleGatePassword()" title="Hiện/ẩn mật mã">
+          <svg id="eyeIcon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Thông báo lỗi -->
+      <div class="gate-error" id="gateError"></div>
+
+      <!-- Nút mở cửa -->
+      <button class="gate-btn" id="gateBtn" onclick="unlockGate()">
+        <span class="gate-btn-text">Mở Cánh Cửa</span>
+        <span class="gate-btn-icon">→</span>
+      </button>
+
+      <!-- Gợi ý nhỏ -->
+      <p class="gate-hint">Một nơi chỉ dành riêng cho hai người ♡</p>
+    </div>
+  </div>
+
+  <!-- Hiệu ứng mở cửa overlay -->
+  <div class="gate-open-overlay" id="gateOpenOverlay"></div>
+
+  <!-- ====================================================
        KHU VỰC VIDEO NỀN CHÍNH
        ==================================================== -->
   <div class="video-background" id="videoBg">
@@ -532,6 +604,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Nút khóa lại website -->
+  <button class="gate-lock-btn" id="gateLockBtn" onclick="lockGate()" title="Khóa lại">🔒 Khóa lại</button>
 
   <script src="script.js"></script>
 </body>
