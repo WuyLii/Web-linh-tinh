@@ -45,7 +45,7 @@ const CloudinaryAdapter = {
 
     const data = await res.json();
 
-    return { secure_url: data.secure_url, resource_type: type };
+    return { secure_url: data.secure_url, resource_type: type, public_id: data.public_id };
 
   },
 
@@ -158,7 +158,7 @@ const SupabaseAdapter = {
 
     if (!items.length) return;
 
-    const records = items.map((it, i) => ({ memory_id: memoryId, media_url: it.url, media_type: it.type, position: i }));
+    const records = items.map((it, i) => ({ memory_id: memoryId, media_url: it.url, media_type: it.type, position: i, cloudinary_public_id: it.public_id || null, cloudinary_resource_type: it.resource_type || null }));
 
     const res = await fetch(`${SUPABASE_URL}/rest/v1/memory_media`, {
 
@@ -186,6 +186,30 @@ const SupabaseAdapter = {
 
     if (!res.ok) throw new Error(`DELETE media thất bại: ${res.status}`);
 
+  },
+
+
+  // ── cloudinary delete ──
+
+  async deleteCloudinaryAsset(public_id, resource_type) {
+    if (!public_id) return;
+    try {
+      await fetch(`${SUPABASE_URL}/functions/v1/delete-cloudinary-asset`, {
+        method: 'POST',
+        headers: { ...this._h(), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ public_id, resource_type: resource_type || 'image' }),
+      });
+    } catch(e) {
+      console.warn('Xóa Cloudinary không thành công (bỏ qua):', e);
+    }
+  },
+
+  async deleteCloudinaryBatch(items) {
+    if (!items || !items.length) return;
+    const toDelete = items.filter(it => it.cloudinary_public_id);
+    await Promise.allSettled(
+      toDelete.map(it => this.deleteCloudinaryAsset(it.cloudinary_public_id, it.cloudinary_resource_type))
+    );
   },
 
 
@@ -320,6 +344,10 @@ async function loadMemoriesFromSupabase() {
         mediaType: r.media_type || 'image',
 
         mediaData: r.media_url || null,
+
+        cloudinary_public_id: r.cloudinary_public_id || null,
+
+        cloudinary_resource_type: r.cloudinary_resource_type || null,
 
         createdAt: r.created_at,
 
@@ -626,22 +654,29 @@ function renderTimeline() {
   });
 
 
-  // Đo chiều cao 1 hàng + gap để vẽ đường kẻ ngang khớp đúng vị trí các nốt
-
-  requestAnimationFrame(() => {
-
+  // Đo chiều cao 1 hàng + gap để vẽ đường kẻ ngang — tính lại sau khi ảnh load để tránh lỗi sọc
+  function recalcRowCycle() {
     const firstItem = container.querySelector('.timeline-item');
-
     if (!firstItem) return;
-
     const rowHeight = firstItem.offsetHeight;
-
     const gap = parseFloat(getComputedStyle(container).rowGap) || 90;
-
     container.style.setProperty('--row-cycle', (rowHeight + gap) + 'px');
+  }
 
-  });
+  requestAnimationFrame(() => recalcRowCycle());
 
+  const imgs = container.querySelectorAll('.timeline-media-wrapper img');
+  if (imgs.length) {
+    let loaded = 0;
+    imgs.forEach(img => {
+      if (img.complete) { loaded++; if (loaded === imgs.length) recalcRowCycle(); }
+      else {
+        img.addEventListener('load',  () => { loaded++; if (loaded === imgs.length) recalcRowCycle(); }, { once: true });
+        img.addEventListener('error', () => { loaded++; if (loaded === imgs.length) recalcRowCycle(); }, { once: true });
+      }
+    });
+  }
+  setTimeout(() => recalcRowCycle(), 800);
 }
 
 
@@ -1387,7 +1422,7 @@ async function saveMemory() {
 
         const up = await CloudinaryAdapter.upload(fileToUpload);
 
-        uploadedNew.push({ url: up.secure_url, type: f.type });
+        uploadedNew.push({ url: up.secure_url, type: f.type, public_id: up.public_id, resource_type: up.resource_type });
 
       } catch(uploadErr) {
 
@@ -1402,7 +1437,7 @@ async function saveMemory() {
 
     const allMediaUrls = [
 
-      ...AppState.existingMedia.filter(e => e.isMain).map(e => ({ url: e.media_url, type: e.media_type })),
+      ...AppState.existingMedia.filter(e => e.isMain).map(e => ({ url: e.media_url, type: e.media_type, public_id: e.cloudinary_public_id, resource_type: e.cloudinary_resource_type })),
 
       ...uploadedNew,
 
@@ -1422,6 +1457,10 @@ async function saveMemory() {
         media_url: firstMedia.url,
 
         media_type: firstMedia.type,
+
+        cloudinary_public_id: firstMedia.public_id || null,
+
+        cloudinary_resource_type: firstMedia.resource_type || null,
 
       });
 
@@ -1447,6 +1486,10 @@ async function saveMemory() {
         media_url: firstMedia.url,
 
         media_type: firstMedia.type,
+
+        cloudinary_public_id: firstMedia.public_id || null,
+
+        cloudinary_resource_type: firstMedia.resource_type || null,
 
       });
 
@@ -1494,6 +1537,14 @@ async function confirmDeleteMemory(id) {
   if (!confirm(`Xóa kỷ niệm "${memory.title}"?\nHành động không thể hoàn tác.`)) return;
 
   try {
+
+    const mediaRows = await SupabaseAdapter.getMedia(memory.supabaseId);
+
+    const allToDelete = [
+      { cloudinary_public_id: memory.cloudinary_public_id, cloudinary_resource_type: memory.cloudinary_resource_type },
+      ...mediaRows,
+    ];
+    await SupabaseAdapter.deleteCloudinaryBatch(allToDelete);
 
     await SupabaseAdapter.deleteMedia(memory.supabaseId);
 
@@ -3485,7 +3536,7 @@ function closePbCatalog() {
 
 (function () {
   // ---- Mật mã (thay đổi tại đây) ----
-  const GATE_PASSWORD = "huyvylov3";
+  const GATE_PASSWORD = "11072025"; // Mật mã để mở khóa cổng ký ức
   const STORAGE_KEY   = "memoryGateUnlocked";
 
   // ---- Khởi động ----
@@ -3499,6 +3550,7 @@ function closePbCatalog() {
       // Hiển thị gate, ẩn nội dung chính
       document.body.classList.add("gate-active");
       spawnParticles();
+      spawnPetals();
     }
   }
 
@@ -3529,6 +3581,69 @@ function closePbCatalog() {
         animation-duration:${duration}s;
       `;
       container.appendChild(p);
+    }
+  }
+
+  // ---- Tạo cánh hoa đào rơi ----
+  function spawnPetals() {
+    const gate = document.getElementById("memoryGate");
+    if (!gate) return;
+
+    // Tạo container nếu chưa có
+    let container = document.getElementById("gatePetals");
+    if (!container) {
+      container = document.createElement("div");
+      container.id = "gatePetals";
+      container.className = "gate-petals";
+      gate.appendChild(container);
+    }
+
+    // Màu cánh hoa đào — mix hồng nhạt và trắng hồng
+    const colors = [
+      "#F9D0DA", "#F5B8C8", "#FBDEE6", "#F2C4CE",
+      "#FFE4EC", "#EDB8C8", "#FDF0F4", "#E8A0B0",
+    ];
+
+    const count = 20;
+    for (let i = 0; i < count; i++) {
+      const petal = document.createElement("div");
+      petal.className = "gate-petal";
+
+      // Kích thước ngẫu nhiên
+      const w = 8 + Math.random() * 10;
+      const h = w * (0.55 + Math.random() * 0.25); // hình bầu dục
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const color2 = colors[Math.floor(Math.random() * colors.length)];
+      const rotate = Math.random() * 360;
+
+      // SVG cánh hoa đào hình oval
+      petal.innerHTML = `<svg width="${w}" height="${h}" viewBox="0 0 20 12" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="pg${i}" cx="40%" cy="35%" r="60%">
+            <stop offset="0%" stop-color="${color2}" stop-opacity="0.95"/>
+            <stop offset="100%" stop-color="${color}" stop-opacity="0.7"/>
+          </radialGradient>
+        </defs>
+        <ellipse cx="10" cy="6" rx="9.5" ry="5.5" fill="url(#pg${i})" transform="rotate(${rotate},10,6)"/>
+        <ellipse cx="10" cy="6" rx="9.5" ry="5.5" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="0.4" transform="rotate(${rotate},10,6)"/>
+      </svg>`;
+
+      // Vị trí và animation ngẫu nhiên
+      const left   = Math.random() * 100;
+      const delay  = Math.random() * 12;
+      const dur    = 6 + Math.random() * 7;
+      const drift  = (Math.random() - 0.5) * 160;
+      const spin   = (Math.random() > 0.5 ? 1 : -1) * (300 + Math.random() * 200);
+
+      petal.style.cssText = `
+        left: ${left}%;
+        animation-duration: ${dur}s;
+        animation-delay: ${delay}s;
+        --drift: ${drift}px;
+        --spin: ${spin}deg;
+      `;
+
+      container.appendChild(petal);
     }
   }
 
@@ -3566,7 +3681,7 @@ function closePbCatalog() {
     const val = inp.value.trim();
 
     if (!val) {
-      showGateError("Bạn chưa nhập chìa khóa ký ức...");
+      showGateError("Nhập mật khẩu mới được mở");
       inp.focus();
       return;
     }
@@ -3574,7 +3689,7 @@ function closePbCatalog() {
     if (val !== GATE_PASSWORD) {
       inp.value = "";
       inp.focus();
-      showGateError("Có lẽ bạn chưa mang theo đúng chiếc chìa khóa của ký ức 🗝️");
+      showGateError("Rất tiếc bạn không thể vào đây :(");
       return;
     }
 
