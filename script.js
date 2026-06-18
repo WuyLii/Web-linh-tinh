@@ -379,6 +379,9 @@ async function loadMemoriesFromSupabase() {
 
 // ====================================================
 
+const mobileTabOrder = ['love-counter', 'timeline', 'photobooth', 'journey'];
+let currentTabIndex = 0;
+
 function switchMobileTab(tabName) {
   // Update active button
   document.querySelectorAll('.mbn-tab').forEach(tab => {
@@ -392,14 +395,52 @@ function switchMobileTab(tabName) {
   });
   document.getElementById(tabName).classList.add('active');
 
+  // Update current tab index
+  currentTabIndex = mobileTabOrder.indexOf(tabName);
+
   // Scroll to top
   window.scrollTo(0, 0);
 }
 
-// Initialize on load
+// Initialize on load and add swipe detection
 window.addEventListener('DOMContentLoaded', () => {
   switchMobileTab('love-counter');
+  initSwipeDetection();
 });
+
+// Swipe detection for mobile
+function initSwipeDetection() {
+  let touchStartX = 0;
+  let touchEndX = 0;
+
+  document.addEventListener('touchstart', (e) => {
+    touchStartX = e.changedTouches[0].screenX;
+  }, false);
+
+  document.addEventListener('touchend', (e) => {
+    touchEndX = e.changedTouches[0].screenX;
+    detectSwipe();
+  }, false);
+
+  function detectSwipe() {
+    const swipeThreshold = 50; // Minimum distance for swipe
+    const diff = touchStartX - touchEndX;
+
+    if (Math.abs(diff) > swipeThreshold) {
+      if (diff > 0) {
+        // Swiped LEFT - go to next tab
+        if (currentTabIndex < mobileTabOrder.length - 1) {
+          switchMobileTab(mobileTabOrder[currentTabIndex + 1]);
+        }
+      } else {
+        // Swiped RIGHT - go to previous tab
+        if (currentTabIndex > 0) {
+          switchMobileTab(mobileTabOrder[currentTabIndex - 1]);
+        }
+      }
+    }
+  }
+}
 
 // ====================================================
 
