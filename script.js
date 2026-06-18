@@ -402,9 +402,24 @@ function switchMobileTab(tabName) {
   window.scrollTo(0, 0);
 }
 
+// ---- Hàm xử lý nút "Xem Kỷ Niệm" trên mobile ----
+window.revealMobileNav = function(defaultTab) {
+  const isMobile = window.innerWidth <= 768;
+  if (isMobile) {
+    document.body.classList.add('mobile-nav-revealed');
+    switchMobileTab(defaultTab || 'love-counter');
+    window.scrollTo(0, 0);
+  } else {
+    smoothScroll('#' + (defaultTab || 'timeline'));
+  }
+};
+
 // Initialize on load and add swipe detection
 window.addEventListener('DOMContentLoaded', () => {
-  switchMobileTab('love-counter');
+  const isMobile = window.innerWidth <= 768;
+  if (!isMobile) {
+    switchMobileTab('love-counter');
+  }
   initSwipeDetection();
 });
 
@@ -3920,7 +3935,6 @@ function closePbCatalog() {
     const gate = document.getElementById("memoryGate");
     if (gate) {
       gate.classList.remove("gate-hidden", "opening");
-      // Reset nội dung input
       const inp = document.getElementById("gatePasswordInput");
       if (inp) inp.value = "";
       const err = document.getElementById("gateError");
@@ -3930,6 +3944,8 @@ function closePbCatalog() {
     }
     document.body.classList.add("gate-active");
     document.body.classList.remove("gate-unlocked");
+    // Reset mobile: về lại hero
+    document.body.classList.remove("mobile-nav-revealed");
   };
 
   // ---- Khởi động khi DOM sẵn sàng ----
