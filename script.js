@@ -3108,7 +3108,7 @@ function renderJnCatalogSlide() {
 
     el.src = item.url; el.controls = true; el.autoplay = true;
 
-    el.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+    el.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000;display:block;';
 
   } else {
 
@@ -3116,7 +3116,7 @@ function renderJnCatalogSlide() {
 
     el.src = item.url;
 
-    el.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+    el.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000;display:block;';
 
   }
 
@@ -3721,7 +3721,7 @@ function renderPbCatalogSlide() {
 
     el.src = item.url; el.controls = true; el.autoplay = true;
 
-    el.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+    el.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000;display:block;';
 
   } else {
 
@@ -3729,7 +3729,7 @@ function renderPbCatalogSlide() {
 
     el.src = item.url;
 
-    el.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+    el.style.cssText = 'width:100%;height:100%;object-fit:contain;background:#000;display:block;';
 
   }
 
