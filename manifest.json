@@ -1,0 +1,28 @@
+{
+  "name": "Bill & Huy 💕",
+  "short_name": "Bill & Huy",
+  "description": "Kỷ niệm và hành trình của Huy & Bill",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a0a2e",
+  "theme_color": "#1a0a2e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://res.cloudinary.com/dmq9orepw/image/upload/c_fill,w_192,h_192/uj96bkvorbzzznmi4raw.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://res.cloudinary.com/dmq9orepw/image/upload/c_fill,w_512,h_512/uj96bkvorbzzznmi4raw.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "https://res.cloudinary.com/dmq9orepw/image/upload/c_fill,w_512,h_512/uj96bkvorbzzznmi4raw.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
