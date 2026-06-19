@@ -129,6 +129,10 @@ html {
 
   font-size: 16px;
 
+  background: #1a0a22;
+
+  overscroll-behavior-y: none;
+
 }
 
 
@@ -143,6 +147,8 @@ body {
   background: #1a0a22;
 
   overflow-x: hidden;
+
+  overscroll-behavior-y: none;
 
   line-height: 1.6;
 
@@ -4798,8 +4804,6 @@ body {
 
   padding: var(--spacing-2xl) 0;
 
-  min-height: 100vh;
-
   box-sizing: border-box;
 
   background: linear-gradient(
@@ -5420,11 +5424,21 @@ body {
 
   position: relative;
 
-  min-height: 400px;
+  min-height: 300px;
 
-  background: rgba(0,0,0,0.4);
+  max-height: 92vh;
 
-  overflow: hidden;
+  background: #000;
+
+  overflow-y: auto;
+
+  overflow-x: hidden;
+
+  display: flex;
+
+  align-items: center;
+
+  justify-content: center;
 
 }
 
@@ -5432,11 +5446,19 @@ body {
 
 .jn-catalog-media video {
 
-  width: 100%; height: 100%;
+  width: 100%;
 
-  object-fit: contain; display: block;
+  height: auto;
+
+  max-height: 100%;
+
+  object-fit: contain;
+
+  display: block;
 
   background: #000;
+
+  flex-shrink: 0;
 
 }
 
@@ -5675,6 +5697,16 @@ body {
 #pbCatalog .jn-catalog-date  { color: var(--pb-orange); }
 
 #pbCatalog .jn-catalog-location { display: none; }
+
+/* Phủ màu nâu đỏ cho phần dư xung quanh ảnh/video trong pbCatalog */
+#pbCatalog .jn-catalog-media {
+  background: #1a0604;
+}
+
+#pbCatalog .jn-catalog-media img,
+#pbCatalog .jn-catalog-media video {
+  background: #1a0604;
+}
 /* ====================================================
    CÁNH CỔNG KÝ ỨC - GATE SCREEN STYLES
    ==================================================== */
@@ -6203,4 +6235,17 @@ body.gate-active #pbCatalog {
 
 @media (max-width: 480px) {
   .gate-music-toggle { top: 14px; right: 14px; width: 38px; height: 38px; font-size: 1rem; }
+}
+/* ====================================================
+   FIX: Tiêu đề section bị navbar (position: fixed) che mất
+   khi cuộn tới bằng menu / smoothScroll
+   ==================================================== */
+section[id] {
+  scroll-margin-top: 96px;
+}
+
+@media (max-width: 768px) {
+  section[id] {
+    scroll-margin-top: 76px;
+  }
 }
