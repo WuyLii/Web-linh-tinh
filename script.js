@@ -3862,6 +3862,7 @@ function closePbCatalog() {
         music.volume -= step;
       }
     }, 60);
+  }
 
   // ---- Ẩn gate ngay lập tức (session đã unlock) ----
   function hideGateInstant() {
