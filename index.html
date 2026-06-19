@@ -156,8 +156,7 @@
       playsinline
       preload="auto"
     >
-      <!-- Thay đường dẫn này bằng video thực tế của bạn -->
-      <source src="assets/nen(test).mp4" type="video/mp4" />
+      <!-- Chưa có video nền: nếu đã lưu video qua bảng Quản Lý, JS sẽ tự gán src bên dưới. -->
       <!-- Fallback nếu video không tải được -->
       Your browser does not support video playback.
     </video>
@@ -356,7 +355,10 @@
       <div class="timeline-container" id="timelineContainer">
         <!-- Các kỷ niệm sẽ được render động bởi JavaScript -->
         <div class="timeline-empty" id="timelineEmpty">
-          <div class="empty-icon">📷</div>
+          <div class="empty-icon-orb empty-icon-orb--lavender">
+            <div class="empty-icon-glow"></div>
+            <div class="empty-icon">📷</div>
+          </div>
           <p>Chưa có kỷ niệm nào được lưu.<br />Hãy thêm kỷ niệm đầu tiên của chúng mình! ✦</p>
           <button class="btn-add-memory-empty" onclick="openAddMemoryModal()">
             + Thêm Kỷ Niệm Đầu Tiên
@@ -385,7 +387,10 @@
       </div>
       <div class="pb-grid" id="pbGrid">
         <div class="pb-empty" id="pbEmpty">
-          <div class="empty-icon">🎯</div>
+          <div class="empty-icon-orb empty-icon-orb--orange">
+            <div class="empty-icon-glow"></div>
+            <div class="empty-icon">🎯</div>
+          </div>
           <p>Chưa có cột mốc nào.<br />Hãy ghi lại thành tích đầu tiên! ✦</p>
           <button class="pb-add-btn-empty" onclick="openAddPhotoboothModal()">
             + Thêm thành tích đầu tiên
@@ -414,7 +419,10 @@
       </div>
       <div class="jn-path-container" id="jnPathContainer">
         <div class="jn-empty" id="jnEmpty">
-          <div class="empty-icon">🗺️</div>
+          <div class="empty-icon-orb empty-icon-orb--blue">
+            <div class="empty-icon-glow"></div>
+            <div class="empty-icon">🗺️</div>
+          </div>
           <p>Hành trình chưa bắt đầu.<br />Hãy thêm điểm dừng chân đầu tiên! ✦</p>
           <button class="jn-add-btn-empty" onclick="openAddJourneyModal()">
             + Thêm Điểm Dừng Chân
@@ -662,28 +670,44 @@
     </div>
   </div>
 
-  <!-- Nút khóa lại website -->
-  <button class="gate-lock-btn" id="gateLockBtn" onclick="lockGate()" title="Khóa lại">🔒 Khóa lại</button>
-
   <!-- ====================================================
        MOBILE BOTTOM NAVIGATION BAR
        Chỉ hiển thị trên mobile (max-width: 768px)
        ==================================================== -->
   <nav class="mobile-bottom-nav" id="mobileBottomNav">
     <button class="mbn-tab active" data-tab="love-counter" onclick="switchMobileTab('love-counter')">
-      <span class="mbn-icon">♡</span>
+      <span class="mbn-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+          <path d="M12 20.5s-7.5-4.6-10.1-9.4C.4 8.1 1.7 4.6 5 3.6c2.2-.7 4.4.2 5.5 2 .4.6 1 1.4 1.5 2.2.5-.8 1.1-1.6 1.5-2.2 1.1-1.8 3.3-2.7 5.5-2 3.3 1 4.6 4.5 3.1 7.5C19.5 15.9 12 20.5 12 20.5z"/>
+        </svg>
+      </span>
       <span class="mbn-label">Đếm Ngày</span>
     </button>
     <button class="mbn-tab" data-tab="timeline" onclick="switchMobileTab('timeline')">
-      <span class="mbn-icon">📖</span>
+      <span class="mbn-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+          <path d="M12 5.5c-1.6-1.2-3.8-1.8-6.5-1.8-.6 0-1 .4-1 1v12.6c0 .6.4 1 1 1 2.7 0 4.9.6 6.5 1.8 1.6-1.2 3.8-1.8 6.5-1.8.6 0 1-.4 1-1V4.7c0-.6-.4-1-1-1-2.7 0-4.9.6-6.5 1.8z"/>
+          <path d="M12 5.5v13.6"/>
+        </svg>
+      </span>
       <span class="mbn-label">Kỷ Niệm</span>
     </button>
     <button class="mbn-tab" data-tab="photobooth" onclick="switchMobileTab('photobooth')">
-      <span class="mbn-icon">📷</span>
+      <span class="mbn-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+          <path d="M4 8.5h2.6l1.2-2h8.4l1.2 2H20a1.5 1.5 0 0 1 1.5 1.5v8a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18v-8A1.5 1.5 0 0 1 4 8.5z"/>
+          <circle cx="12" cy="13.5" r="3.4"/>
+        </svg>
+      </span>
       <span class="mbn-label">Phô Tô Bút</span>
     </button>
     <button class="mbn-tab" data-tab="journey" onclick="switchMobileTab('journey')">
-      <span class="mbn-icon">🗺️</span>
+      <span class="mbn-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+          <path d="M12 21s-6.8-6.1-6.8-11.3a6.8 6.8 0 1 1 13.6 0C18.8 14.9 12 21 12 21z"/>
+          <circle cx="12" cy="9.7" r="2.4"/>
+        </svg>
+      </span>
       <span class="mbn-label">Xuyên Việt</span>
     </button>
   </nav>
