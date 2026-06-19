@@ -82,6 +82,16 @@
     <!-- Overlay mờ lên video -->
     <div class="gate-video-overlay"></div>
 
+    <!-- ===== NHẠC NỀN CHO MÀN HÌNH KHOÁ ===== -->
+    <!-- Thay link bên dưới bằng link nhạc của bạn (upload lên Cloudinary resource_type=video) -->
+    <audio id="gateMusic" loop preload="auto">
+      <source src="https://res.cloudinary.com/dmq9orepw/video/upload/v1781860728/your-music-file.mp3" type="audio/mpeg" />
+    </audio>
+    <!-- Nút bật/tắt nhạc -->
+    <button class="gate-music-toggle" id="gateMusicToggle" onclick="toggleGateMusic()" title="Bật/tắt nhạc">
+      <span id="gateMusicIcon">🔇</span>
+    </button>
+
     <!-- Hạt sáng lấp lánh nền -->
     <div class="gate-particles" id="gateParticles"></div>
     <!-- Nội dung trung tâm -->
